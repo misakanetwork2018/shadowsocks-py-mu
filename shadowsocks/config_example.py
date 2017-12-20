@@ -65,7 +65,7 @@ SS_OTA = False
 # Enforce the use of AEAD ciphers
 # When enabled, all requests of creating server with non-AEAD cipher will be omitted
 # Check shadowsocks/crypto/aead.py for the list of ciphers
-SS_ENFORCE_AEAD = True
+SS_ENFORCE_AEAD = False
 # Skip listening these ports
 SS_SKIP_PORTS = [80]
 # TCP Fastopen (Some OS may not support this, Eg.: Windows)
