@@ -26,11 +26,19 @@ Install Instructions for Docker User
 
 1. build the docker: `docker build -t shadowsocks-mu .`
 2. create a config file as above
-3. run the docker (random free ports will be allocated): `docker run -it -v /PATH/TO/CONFIG/FILE:/shadowsocks/shadowsocks/config.py -p PORT_START-PORT_END shadowsocks-mu`
+3. run the docker (random free ports will be allocated):
+
+   ```
+   docker run -it \
+       -v /PATH/TO/CONFIG/FILE:/shadowsocks/shadowsocks/config.py \
+       -v /PATH/TO/LOG/FILE:/shadowsocks/shadowsocks/shadowsocks.log \
+       -p PORT_START-PORT_END \
+       shadowsocks-mu
+   ```
    
-   [OR] to use fixed ports: `docker run -it -v /PATH/TO/CONFIG/FILE:/shadowsocks/shadowsocks/config.py -p PORT_START-PORT_END:PORT_START-PORT_END shadowsocks-mu`
+   If you want to use fixed ports (e.g. port 443 of the host being matched with 443 of the docker), use `-p PORT_START-PORT_END:PORT_START-PORT_END` instead.
    
-   *Reminder: `/PATH/TO/CONFIG/FILE` should be an absolute path*
+   Note: `/PATH/TO/CONFIG/FILE` & `/PATH/TO/LOG/FILE` should be **absolute** paths
 
 Reminders for Windows User
 --------------------------
@@ -86,7 +94,7 @@ Database user table column
 
 Compatibility with frontend UIs
 -------------------------------
-It is fully compatible (through [MU API *V2*](https://github.com/orvice/ss-panel/wiki/Mu-V2)) with [ss-panel V3](https://github.com/orvice/ss-panel) .
+It is fully compatible (through [MU API **V2**](https://github.com/orvice/ss-panel/wiki/Mu-V2)) with [ss-panel V3](https://github.com/orvice/ss-panel) .
 
 Open source license
 -------------------
