@@ -67,9 +67,11 @@ if os.path.isdir('../.git') and not os.path.exists('../.nogit'):
     import subprocess
     if "check_output" not in dir(subprocess):
         # Compatible with Python < 2.7
-        VERSION = subprocess.Popen(["git", "describe", "--tags"], stdout=subprocess.PIPE).communicate()[0]
+        VERSION = subprocess.Popen(["git", "describe", "--tags", "--always"], stdout=subprocess.PIPE).communicate()[0]
     else:
-        VERSION = subprocess.check_output(["git", "describe", "--tags"])
+        VERSION = subprocess.check_output(["git", "describe", "--tags", "--always"])
+    # Remove EOL characters in git's output
+    VERSION = VERSION.rstrip()
 else:
     VERSION = '3.4.0-dev'
 
