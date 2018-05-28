@@ -58,10 +58,6 @@ SS_BIND_IP = '::'
 # This default method will be replaced by database/api query result if applicable when CUSTOM_METHOD is enabled
 SS_METHOD = 'chacha20-ietf-poly1305'
 CUSTOM_METHOD = True
-# Choose whether to enforce Shadowsocks One Time Auth (OTA)
-# OTA will still be enabled for the client if it sends an AUTH Address type(0x10)
-# !!! THIS OPTION IS DEPRECATED !!!
-SS_OTA = False
 # Enforce the use of AEAD ciphers
 # When enabled, all requests of creating server with non-AEAD cipher will be omitted
 # Check shadowsocks/crypto/aead.py for the list of ciphers
