@@ -142,12 +142,6 @@ class TCPRelayHandler(object):
         self._cryptor = cryptor.Cryptor(config['password'],
                                         config['method'],
                                         config['crypto_path'])
-        self._ota_enable = config.get('one_time_auth', False)
-        self._ota_enable_session = self._ota_enable
-        self._ota_buff_head = b''
-        self._ota_buff_data = b''
-        self._ota_len = 0
-        self._ota_chunk_idx = 0
         self._fastopen_connected = False
         self._data_to_write_to_local = []
         self._data_to_write_to_remote = []
@@ -267,14 +261,8 @@ class TCPRelayHandler(object):
 
     def _handle_stage_connecting(self, data):
         if not self._is_local:
-            if self._ota_enable_session:
-                self._ota_chunk_data(data,
-                                     self._data_to_write_to_remote.append)
-            else:
-                self._data_to_write_to_remote.append(data)
+            self._data_to_write_to_remote.append(data)
             return
-        if self._ota_enable_session:
-            data = self._ota_chunk_data_gen(data)
         data = self._cryptor.encrypt(data)
         self._data_to_write_to_remote.append(data)
 
@@ -362,31 +350,11 @@ class TCPRelayHandler(object):
                     addr, common.to_str(remote_addr)
                 ))
                 return
-                key = self._cryptor.decipher_iv + self._cryptor.key
             else:
                 logging.info('U[%d] TCP CONN: RP[%d] A[%s-->%s]' % (
                     self._config['server_port'], remote_port,
                     addr, common.to_str(remote_addr)
                 ))
-
-            if self._is_local is False:
-                # spec https://shadowsocks.org/en/spec/one-time-auth.html
-                self._ota_enable_session = addrtype & ADDRTYPE_AUTH
-                if self._ota_enable or (addrtype & ADDRTYPE_AUTH == ADDRTYPE_AUTH):
-                    if not self._ota_enable and self._config['verbose']:
-                        logging.info('U[%d] TCP one time auth automatically enabled' % self._config['server_port'])
-                    self._ota_enable = True
-                    if len(data) < header_length + ONETIMEAUTH_BYTES:
-                        logging.warn('U[%d] One time auth header is too short' % self._config['server_port'])
-                        return None
-                    offset = header_length + ONETIMEAUTH_BYTES
-                    _hash = data[header_length: offset]
-                    _data = data[:header_length]
-                    key = self._cryptor.decipher_iv + self._cryptor.key
-                    if onetimeauth_verify(_hash, _data, key) is False:
-                        logging.warn('U[%d] One time auth fail' % self._config['server_port'])
-                        self.destroy()
-                    header_length += ONETIMEAUTH_BYTES
             self._remote_address = (common.to_str(remote_addr), remote_port)
             # pause reading
             self._update_stream(STREAM_UP, WAIT_STATUS_WRITING)
@@ -397,23 +365,13 @@ class TCPRelayHandler(object):
                                      b'\x00\x00\x00\x00\x10\x10'),
                                     self._local_sock)
                 key = self._cryptor.cipher_iv + self._cryptor.key
-                # spec https://shadowsocks.org/en/spec/one-time-auth.html
-                # ATYP & 0x10 == 0x10, then OTA is enabled.
-                if self._ota_enable:
-                    data = common.chr(addrtype | ADDRTYPE_AUTH) + data[1:]
-                    key = self._cryptor.cipher_iv + self._cryptor.key
-                    data += onetimeauth_gen(data, key)
                 data_to_send = self._cryptor.encrypt(data)
                 self._data_to_write_to_remote.append(data_to_send)
                 # notice here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(self._chosen_server[0],
                                            self._handle_dns_resolved)
             else:
-                if self._ota_enable:
-                    data = data[header_length:]
-                    self._ota_chunk_data(data,
-                                         self._data_to_write_to_remote.append)
-                elif len(data) > header_length:
+                if len(data) > header_length:
                     self._data_to_write_to_remote.append(data[header_length:])
                 # notice here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(remote_addr,
@@ -489,60 +447,12 @@ class TCPRelayHandler(object):
     def _write_to_sock_remote(self, data):
         self._write_to_sock(data, self._remote_sock)
 
-    def _ota_chunk_data(self, data, data_cb):
-        # spec https://shadowsocks.org/en/spec/one-time-auth.html
-        unchunk_data = b''
-        while len(data) > 0:
-            if self._ota_len == 0:
-                # get DATA.LEN + HMAC-SHA1
-                length = ONETIMEAUTH_CHUNK_BYTES - len(self._ota_buff_head)
-                self._ota_buff_head += data[:length]
-                data = data[length:]
-                if len(self._ota_buff_head) < ONETIMEAUTH_CHUNK_BYTES:
-                    # wait more data
-                    return
-                data_len = self._ota_buff_head[:ONETIMEAUTH_CHUNK_DATA_LEN]
-                self._ota_len = struct.unpack('>H', data_len)[0]
-            length = min(self._ota_len - len(self._ota_buff_data), len(data))
-            self._ota_buff_data += data[:length]
-            data = data[length:]
-            if len(self._ota_buff_data) == self._ota_len:
-                # get a chunk data
-                _hash = self._ota_buff_head[ONETIMEAUTH_CHUNK_DATA_LEN:]
-                _data = self._ota_buff_data
-                index = struct.pack('>I', self._ota_chunk_idx)
-                key = self._cryptor.decipher_iv + index
-                if onetimeauth_verify(_hash, _data, key) is False:
-                    logging.warn('U[%d] TCP One time auth fail, chunk is dropped!' % self._config[
-                        'server_port'])
-                else:
-                    unchunk_data += _data
-                    self._ota_chunk_idx += 1
-                self._ota_buff_head = b''
-                self._ota_buff_data = b''
-                self._ota_len = 0
-        data_cb(unchunk_data)
-        return
-
-    def _ota_chunk_data_gen(self, data):
-        data_len = struct.pack(">H", len(data))
-        index = struct.pack('>I', self._ota_chunk_idx)
-        key = self._cryptor.cipher_iv + index
-        sha110 = onetimeauth_gen(data, key)
-        self._ota_chunk_idx += 1
-        return data_len + sha110 + data
-
     def _handle_stage_stream(self, data):
         if self._is_local:
-            if self._ota_enable_session:
-                data = self._ota_chunk_data_gen(data)
             data = self._cryptor.encrypt(data)
             self._write_to_sock(data, self._remote_sock)
         else:
-            if self._ota_enable_session:
-                self._ota_chunk_data(data, self._write_to_sock_remote)
-            else:
-                self._write_to_sock(data, self._remote_sock)
+            self._write_to_sock(data, self._remote_sock)
         return
 
     def _check_auth_method(self, data):

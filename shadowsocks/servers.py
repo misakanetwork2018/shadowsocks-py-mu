@@ -107,7 +107,6 @@ def main():
         'timeout': config.SS_TIMEOUT,
         'fast_open': config.SS_FASTOPEN,
         'verbose': config.SS_VERBOSE,
-        'one_time_auth': False,
         'forbidden_ip': config.SS_FORBIDDEN_IP,
         'firewall_mode': config.SS_FIREWALL_MODE,
         'firewall_trusted': config.SS_FIREWALL_TRUSTED,
