@@ -4,48 +4,44 @@ import logging
 # !!! Only edit this line when you update your configuration file !!!
 # After you update, the value of CONFIG_VERSION in config.py and
 # config_example.py should be the same in order to start the server
-CONFIG_VERSION = '20160623-2'
+CONFIG_VERSION = 1
 
 
 # Manyuser Interface Settings
 # ---------------------------
-# If API is enabled, database will be no longer used
-# The known app that supports API is SS-Panel V3
-# Be careful and check whether your app supports this API BEFORE you enable this feature
+# If API is enabled, database will no longer be used
+# The known web panel that is compatible with the API is SS-Panel V3
+# Be careful and check whether your web panel supports this API BEFORE you enable this feature
 API_ENABLED = False
+# Time interval between 2 pulls from the database or API
+CHECKTIME = 30
+# Time interval between 2 pushes to the database or API
+SYNCTIME = 300
+# Timeout for MySQL connection or web socket (if using API)
+TIMEOUT = 30
 
-# Database Config
-MYSQL_HOST = 'mengsky.net'
+# MySQL Database Config (NO NEED to edit if you set 'True' above)
+MYSQL_HOST = 'db.example.net'
 MYSQL_PORT = 3306
 MYSQL_USER = 'root'
 MYSQL_PASS = 'root'
 MYSQL_DB = 'shadowsocks'
-# USUALLY this variable do not need to be changed
 MYSQL_USER_TABLE = 'user'
-# This is also the timeout of connecting to the API
-MYSQL_TIMEOUT = 30
 
 # Shadowsocks MultiUser API Settings
 API_URL = 'http://domain/mu'
 # API Key (you can find this in the .env file if you are using SS-Panel V3)
 API_PASS = 'mupass'
-NODE_ID = '1'
-
-# Time interval between 2 pulls from the database or API
-CHECKTIME = 30
-# Time interval between 2 pushes to the database or API
-SYNCTIME = 120
+API_NODE_ID = '1'
 
 
 # Manager Settings
 # ----------------
 # USUALLY you can just keep this section unchanged
-# It is not necessary to change the password if you only listen on 127.0.0.1
-MANAGE_PASS = 'passwd'
 # if you want manage in other server you should set this value to global ip
-MANAGE_BIND_IP = '127.0.0.1'
+MANAGER_BIND_IP = '127.0.0.1'
 # make sure this port is idle
-MANAGE_PORT = 65000
+MANAGER_PORT = 65000
 
 
 # Server Settings
@@ -55,26 +51,26 @@ MANAGE_PORT = 65000
 # if you want to bind only all of ipv4 please use '0.0.0.0'
 # if you want to bind a specific IP you may use something like '4.4.4.4'
 SS_BIND_IP = '::'
-# This default method will be replaced by database/api query result if applicable when CUSTOM_METHOD is enabled
+# This default method will be replaced by database/api query result if applicable when SS_CUSTOM_METHOD is enabled
 SS_METHOD = 'chacha20-ietf-poly1305'
-CUSTOM_METHOD = True
+SS_CUSTOM_METHOD = True
 # Enforce the use of AEAD ciphers
-# When enabled, all requests of creating server with non-AEAD cipher will be omitted
-# Check shadowsocks/crypto/aead.py for the list of ciphers
+# When enabled, all requests of creating server with a non-AEAD cipher will be omitted
+# For more information, please refer to http://www.shadowsocks.org/en/spec/AEAD-Ciphers.html
 SS_ENFORCE_AEAD = False
 # Skip listening these ports
 SS_SKIP_PORTS = [80]
 # TCP Fastopen (Some OS may not support this, Eg.: Windows)
 SS_FASTOPEN = False
-# Shadowsocks Time Out
-# It should > 180s as some protocol has keep-alive packet of 3 min, Eg.: bt
-SS_TIMEOUT = 185
+# Shadowsocks socket timeout
+# It should not be too small as some protocol has keep-alive packet of long time, Eg.: BT
+SS_TIMEOUT = 310
 
 
 # Firewall Settings
 # -----------------
 # These settings are to prevent user from abusing your service
-SS_FIREWALL_ENABLED = True
+SS_FIREWALL_ENABLED = False
 # Mode = whitelist or blacklist
 SS_FIREWALL_MODE = 'blacklist'
 # Member ports should be INTEGERS
@@ -88,10 +84,11 @@ SS_FIREWALL_TRUSTED = [443]
 SS_FORBIDDEN_IP = []
 
 
-# Logging and Debugging Settings
+# Debugging and Logging Settings
 # --------------------------
-LOG_ENABLE = True
+# If SS_VERBOSE is true, traceback will be printed to STDIO when an exception is thrown
 SS_VERBOSE = False
+LOG_ENABLE = True
 # Available Log Level: logging.NOTSET|DEBUG|INFO|WARNING|ERROR|CRITICAL
 LOG_LEVEL = logging.INFO
 LOG_FILE = 'shadowsocks.log'
