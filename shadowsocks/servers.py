@@ -32,6 +32,13 @@ try:
 except ImportError:
     import _dummy_thread as thread
 
+from sys import platform
+if platform == 'linux' or platform == 'linux2':
+    with open('/proc/1/cgroup', 'rt') as ifh:
+        if 'docker' in ifh.read():
+            print('[INFO] Running inside a docker, log file config will be ignored')
+            config.LOG_FILE = 'shadowsocks.log'
+
 # Output log at stdout as well as the log file
 logging.basicConfig(format=config.LOG_FORMAT,
                     datefmt=config.LOG_DATE_FORMAT, stream=sys.stdout, level=config.LOG_LEVEL)
@@ -46,7 +53,7 @@ if config.LOG_ENABLE:
 try:
     import config_example
     if not hasattr(config, 'CONFIG_VERSION') or config.CONFIG_VERSION != config_example.CONFIG_VERSION:
-        logging.error('Your configuration file is out-dated. Please update `config.py` according to `config_example.py`.')
+        logging.error('Your config file is outdated. Please update `config.py` according to `config_example.py`.')
         sys.exit('config out-dated')
 except ImportError:
     logging.error('DO NOT delete the example configuration! Please re-upload it or use `git reset` to recover the file!')
@@ -60,9 +67,11 @@ if os.path.isdir('../.git') and not os.path.exists('../.nogit'):
     import subprocess
     if "check_output" not in dir(subprocess):
         # Compatible with Python < 2.7
-        VERSION = subprocess.Popen(["git", "describe", "--tags"], stdout=subprocess.PIPE).communicate()[0]
+        VERSION = subprocess.Popen(["git", "describe", "--tags", "--always"], stdout=subprocess.PIPE).communicate()[0]
     else:
-        VERSION = subprocess.check_output(["git", "describe", "--tags"])
+        VERSION = subprocess.check_output(["git", "describe", "--tags", "--always"])
+    # Remove EOL characters in git's output
+    VERSION = VERSION.rstrip()
 else:
     VERSION = '3.4.0-dev'
 
@@ -82,28 +91,20 @@ def main():
     else:
         firewall_ports = None
 
-    # Build configuration
-    try:
-        ss_enforce_aead = config.SS_ENFORCE_AEAD
-    except AttributeError:
-        logging.info("Configuration for AEAD cipher enforcement not found, use False as default")
-        ss_enforce_aead = False
-
     configer = {
         'server': config.SS_BIND_IP,
         'local_port': 1081,
         'port_password': {},
         'method': config.SS_METHOD,
-        'manager_address': '%s:%s' % (config.MANAGE_BIND_IP, config.MANAGE_PORT),
+        'manager_address': '%s:%s' % (config.MANAGER_BIND_IP, config.MANAGER_PORT),
         'timeout': config.SS_TIMEOUT,
         'fast_open': config.SS_FASTOPEN,
         'verbose': config.SS_VERBOSE,
-        'one_time_auth': config.SS_OTA,
         'forbidden_ip': config.SS_FORBIDDEN_IP,
         'firewall_mode': config.SS_FIREWALL_MODE,
         'firewall_trusted': config.SS_FIREWALL_TRUSTED,
         'firewall_ports': firewall_ports,
-        'aead_enforcement': ss_enforce_aead
+        'aead_enforcement': config.SS_ENFORCE_AEAD
     }
     logging.info('-----------------------------------------')
     logging.info('Multi-User Shadowsocks Server Starting...')

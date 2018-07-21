@@ -46,7 +46,7 @@ class DbTransfer(object):
         try:
             cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             cli.settimeout(2)
-            cli.sendto(cmd, ('%s' % config.MANAGE_BIND_IP, config.MANAGE_PORT))
+            cli.sendto(cmd, ('%s' % config.MANAGER_BIND_IP, config.MANAGER_PORT))
             data, addr = cli.recvfrom(1500)
             cli.close()
             # TODO: bad way solve timed out
@@ -63,7 +63,7 @@ class DbTransfer(object):
         dt_transfer = {}
         cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         cli.settimeout(2)
-        cli.sendto('transfer: {}', (config.MANAGE_BIND_IP, config.MANAGE_PORT))
+        cli.sendto('transfer: {}', (config.MANAGER_BIND_IP, config.MANAGER_PORT))
         while True:
             data, addr = cli.recvfrom(1500)
             if data == 'e':
@@ -101,7 +101,7 @@ class DbTransfer(object):
                 if config.SS_VERBOSE:
                     logging.info('U[%s] User ID Obtained:%s' % (port, user))
                 tran = str(dt_transfer[port])
-                data = {'d': tran, 'node_id': config.NODE_ID, 'u': '0'}
+                data = {'d': tran, 'node_id': config.API_NODE_ID, 'u': '0'}
                 url = config.API_URL + '/users/' + \
                     str(user) + '/traffic?key=' + config.API_PASS
                 data = urllib.urlencode(data)
@@ -116,7 +116,7 @@ class DbTransfer(object):
             if config.SS_VERBOSE:
                 logging.info('api upload: pushing online user count')
             data = {'count': i}
-            url = config.API_URL + '/nodes/' + config.NODE_ID + \
+            url = config.API_URL + '/nodes/' + config.API_NODE_ID + \
                 '/online_count?key=' + config.API_PASS
             data = urllib.urlencode(data)
             req = urllib2.Request(url, data)
@@ -128,7 +128,7 @@ class DbTransfer(object):
             # load info
             if config.SS_VERBOSE:
                 logging.info('api upload: pushing node status')
-            url = config.API_URL + '/nodes/' + config.NODE_ID + '/info?key=' + config.API_PASS
+            url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/info?key=' + config.API_PASS
             f = open("/proc/loadavg")
             load = f.read().split()
             f.close()
@@ -202,7 +202,7 @@ class DbTransfer(object):
                     DbTransfer.send_command(
                         'remove: {"server_port":%d}' % row[0])
                 else:
-                    if not config.CUSTOM_METHOD:
+                    if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
                     if server['method'] != row[7]:
                         # encryption method changed
@@ -212,17 +212,17 @@ class DbTransfer(object):
                             'remove: {"server_port":%d}' % row[0])
             else:
                 if (row[5] == 1 or row[5] == "1") and row[6] == 1 and row[1] + row[2] < row[3]:
-                    if not config.CUSTOM_METHOD:
+                    if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
                     DbTransfer.send_command(
                         'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' % (row[0], row[4], row[7], row[8]))
-                    if config.MANAGE_BIND_IP != '127.0.0.1':
+                    if config.MANAGER_BIND_IP != '127.0.0.1':
                         logging.info(
                             'U[%s] Server Started with password [%s] and method [%s]' % (row[0], row[4], row[7]))
 
     @staticmethod
     def thread_db():
-        socket.setdefaulttimeout(config.MYSQL_TIMEOUT)
+        socket.setdefaulttimeout(config.TIMEOUT)
         while True:
             try:
                 rows = DbTransfer.pull_db_all_user()
@@ -237,7 +237,7 @@ class DbTransfer(object):
 
     @staticmethod
     def thread_push():
-        socket.setdefaulttimeout(config.MYSQL_TIMEOUT)
+        socket.setdefaulttimeout(config.TIMEOUT)
         while True:
             try:
                 DbTransfer.get_instance().push_db_all_user()
@@ -284,7 +284,7 @@ class DbTransfer(object):
     @staticmethod
     def pull_api_user():
         # Node parameter is not included for the ORIGINAL version of SS-Panel V3
-        url = config.API_URL + '/users?key=' + config.API_PASS + '&node=' + config.NODE_ID
+        url = config.API_URL + '/users?key=' + config.API_PASS + '&node=' + config.API_NODE_ID
         f = urllib.urlopen(url)
         data = json.load(f)
         f.close()

@@ -104,8 +104,6 @@ class UDPRelay(object):
         self._password = common.to_bytes(config['password'])
         self._method = config['method']
         self._timeout = config['timeout']
-        self._ota_enable = config.get('one_time_auth', False)
-        self._ota_enable_session = self._ota_enable
         self._is_local = is_local
         self._cache = lru_cache.LRUCache(timeout=config['timeout'],
                                          close_callback=self._close_client)
@@ -221,23 +219,6 @@ class UDPRelay(object):
             server_addr, server_port = self._get_a_server()
         else:
             server_addr, server_port = dest_addr, dest_port
-            # spec https://shadowsocks.org/en/spec/one-time-auth.html
-            self._ota_enable_session = addrtype & ADDRTYPE_AUTH
-            if self._ota_enable and not self._ota_enable_session:
-                logging.warn('client one time auth is required')
-                return
-            if self._ota_enable_session:
-                if len(data) < header_length + ONETIMEAUTH_BYTES:
-                    logging.warn('U[%d] UDP one time auth header is too short' % self._config[
-                                 'server_port'])
-                    return
-                _hash = data[-ONETIMEAUTH_BYTES:]
-                data = data[: -ONETIMEAUTH_BYTES]
-                _key = iv + key
-                if onetimeauth_verify(_hash, data, _key) is False:
-                    logging.warn('U[%d] UDP one time auth fail' %
-                                 self._config['server_port'])
-                    return
         addrs = self._dns_cache.get(server_addr, None)
         if addrs is None:
             addrs = socket.getaddrinfo(server_addr, server_port, 0,
@@ -269,9 +250,6 @@ class UDPRelay(object):
 
         if self._is_local:
             key, iv, m = cryptor.gen_key_iv(self._password, self._method)
-            # spec https://shadowsocks.org/en/spec/one-time-auth.html
-            if self._ota_enable_session:
-                data = self._ota_chunk_data_gen(key, iv, data)
             try:
                 data = cryptor.encrypt_all_m(key, iv, m, self._method, data,
                                              self._crypto_path)
@@ -350,12 +328,6 @@ class UDPRelay(object):
             # this packet is from somewhere else we know
             # simply drop that packet
             pass
-
-    @staticmethod
-    def _ota_chunk_data_gen(key, iv, data):
-        data = common.chr(common.ord(data[0]) | ADDRTYPE_AUTH) + data[1:]
-        key += iv
-        return data + onetimeauth_gen(data, key)
 
     def add_to_loop(self, loop):
         if self._eventloop:
