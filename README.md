@@ -6,7 +6,7 @@ Requirement
 -----------
 1. Python >= 2.5 (python=2.5 need to install extra library: `pip install simplejson`)
 2. MySQL >= 5 (if using database)
-3. A Panel with [MU API](https://github.com/orvice/ss-panel/wiki/Mu-V2), such as [SS-Panel V3](https://github.com/orvice/ss-panel). (if using MU API)
+3. A Panel with [MU API](https://github.com/fsgmhoward/shadowsocks-py-mu/wiki/MultiUser-(MU)-API-Reference), such as [SS-Panel V3](https://github.com/orvice/ss-panel). (if using MU API)
 
 Install Instructions for Database User
 --------------------------------------
@@ -90,11 +90,13 @@ Database user table column
 
 `method` custom encryption method
 
+`enable`/`switch` indicating whether the user is enabled
+
 `transfer_enable` maximum accumulated data transfer allowed - if `u` + `d` > `transfer_enable`, service for this client will be stopped (other clients are not affected)
 
 Compatibility with frontend UIs
 -------------------------------
-It is fully compatible (through [MU API **V2**](https://github.com/orvice/ss-panel/wiki/Mu-V2)) with [ss-panel V3](https://github.com/orvice/ss-panel) .
+It is fully compatible (through [MU API](https://github.com/fsgmhoward/shadowsocks-py-mu/wiki/MultiUser-(MU)-API-Reference)) with [ss-panel V3](https://github.com/orvice/ss-panel) .
 
 Open source license
 -------------------
