@@ -32,22 +32,28 @@ try:
 except ImportError:
     import _dummy_thread as thread
 
+logger = logging.getLogger()
+logger.setLevel(config.LOG_LEVEL)
+consoleHandler = logging.StreamHandler(stream=sys.stdout)
+consoleHandler.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
+consoleHandler.setLevel(config.LOG_LEVEL)
+
 from sys import platform
 if platform == 'linux' or platform == 'linux2':
     with open('/proc/1/cgroup', 'rt') as ifh:
         if 'docker' in ifh.read():
-            print('[INFO] Running inside a docker, log file config will be ignored')
+            print('[INFO] Running inside a docker.')
+            print('[INFO] Log file config will be ignored & log will not be printed to stdout.')
             config.LOG_FILE = 'shadowsocks.log'
+        else:
+            logger.addHandler(consoleHandler)
 
-# Output log at stdout as well as the log file
-logging.basicConfig(format=config.LOG_FORMAT,
-                    datefmt=config.LOG_DATE_FORMAT, stream=sys.stdout, level=config.LOG_LEVEL)
 if config.LOG_ENABLE:
-    logger = logging.getLogger()
-    fileLogger = logging.FileHandler(config.LOG_FILE)
-    fileLogger.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
-    fileLogger.setLevel(config.LOG_LEVEL)
-    logger.addHandler(fileLogger)
+    # If enabled logging to file, add a fileLogHandler as well
+    fileHandler = logging.FileHandler(config.LOG_FILE)
+    fileHandler.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
+    fileHandler.setLevel(config.LOG_LEVEL)
+    logger.addHandler(fileHandler)
 
 # Check whether the versions of config files match
 try:
