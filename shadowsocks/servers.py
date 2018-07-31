@@ -49,8 +49,13 @@ if platform == 'linux' or platform == 'linux2':
             logger.addHandler(consoleHandler)
 
 if config.LOG_ENABLE:
-    # If enabled logging to file, add a fileLogHandler as well
-    fileHandler = logging.FileHandler(config.LOG_FILE)
+    # If enabled logging to file, add a fileHandler as well
+    if sys.version_info >= (2, 6) and platform != 'win32':
+        # If python version is >= 2.6 and it is not running on Windows, use WatchedFileHandler
+        import logging.handlers
+        fileHandler = logging.handlers.WatchedFileHandler(config.LOG_FILE)
+    else:
+        fileHandler = logging.FileHandler(config.LOG_FILE)
     fileHandler.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
     fileHandler.setLevel(config.LOG_LEVEL)
     logger.addHandler(fileHandler)
