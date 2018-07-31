@@ -22,10 +22,17 @@ import socket
 import config
 import json
 import urllib
-# TODO: urllib2 does not exist in python 3.5+
-import urllib2
+import sys
+if sys.version_info >= (3, 0):
+    # If using python 3, use urllib instead of urllib2
+    from urllib.request import Request, urlopen
+else:
+    from urllib2 import Request, urlopen
+
+
 if not config.API_ENABLED:
-	import cymysql
+    import cymysql
+
 
 class DbTransfer(object):
 
@@ -46,7 +53,7 @@ class DbTransfer(object):
         try:
             cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             cli.settimeout(2)
-            cli.sendto(cmd, ('%s' % config.MANAGER_BIND_IP, config.MANAGER_PORT))
+            cli.sendto(cmd.encode(), ('%s' % config.MANAGER_BIND_IP, config.MANAGER_PORT))
             data, addr = cli.recvfrom(1500)
             cli.close()
             # TODO: bad way solve timed out
@@ -63,7 +70,7 @@ class DbTransfer(object):
         dt_transfer = {}
         cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         cli.settimeout(2)
-        cli.sendto('transfer: {}', (config.MANAGER_BIND_IP, config.MANAGER_PORT))
+        cli.sendto(b'transfer: {}', (config.MANAGER_BIND_IP, config.MANAGER_PORT))
         while True:
             data, addr = cli.recvfrom(1500)
             if data == 'e':
@@ -105,8 +112,8 @@ class DbTransfer(object):
                 url = config.API_URL + '/users/' + \
                     str(user) + '/traffic?key=' + config.API_PASS
                 data = urllib.urlencode(data)
-                req = urllib2.Request(url, data)
-                response = urllib2.urlopen(req)
+                req = Request(url, data)
+                response = urlopen(req)
                 the_page = response.read()
                 if config.SS_VERBOSE:
                     logging.info('%s - %s - %s' % (url, data, the_page))
@@ -119,8 +126,8 @@ class DbTransfer(object):
             url = config.API_URL + '/nodes/' + config.API_NODE_ID + \
                 '/online_count?key=' + config.API_PASS
             data = urllib.urlencode(data)
-            req = urllib2.Request(url, data)
-            response = urllib2.urlopen(req)
+            req = Request(url, data)
+            response = urlopen(req)
             the_page = response.read()
             if config.SS_VERBOSE:
                 logging.info('%s - %s - %s' % (url, data, the_page))
@@ -140,8 +147,8 @@ class DbTransfer(object):
             f.close()
             data = {'load': loadavg, 'uptime': uptime}
             data = urllib.urlencode(data)
-            req = urllib2.Request(url, data)
-            response = urllib2.urlopen(req)
+            req = Request(url, data)
+            response = urlopen(req)
             the_page = response.read()
             if config.SS_VERBOSE:
                 logging.info('%s - %s - %s' % (url, data, the_page))
@@ -285,7 +292,7 @@ class DbTransfer(object):
     def pull_api_user():
         # Node parameter is not included for the ORIGINAL version of SS-Panel V3
         url = config.API_URL + '/users?key=' + config.API_PASS + '&node=' + config.API_NODE_ID
-        f = urllib.urlopen(url)
+        f = urlopen(url)
         data = json.load(f)
         f.close()
         rows = []

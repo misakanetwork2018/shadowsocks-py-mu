@@ -30,7 +30,7 @@ except ImportError:
 try:
     import thread
 except ImportError:
-    import _dummy_thread as thread
+    import _thread as thread
 
 logger = logging.getLogger()
 logger.setLevel(config.LOG_LEVEL)
@@ -102,7 +102,7 @@ def main():
     else:
         firewall_ports = None
 
-    configer = {
+    config_passed = {
         'server': config.SS_BIND_IP,
         'local_port': 1081,
         'port_password': {},
@@ -125,7 +125,7 @@ def main():
     else:
         logging.info('Now using MySQL Database as the user interface')
     logging.info('Now starting manager thread...')
-    thread.start_new_thread(manager.run, (configer, subprocess_callback,))
+    thread.start_new_thread(manager.run, (config_passed, subprocess_callback,))
     time.sleep(5)
     logging.info('Now starting user pulling thread...')
     thread.start_new_thread(DbTransfer.thread_db, ())
