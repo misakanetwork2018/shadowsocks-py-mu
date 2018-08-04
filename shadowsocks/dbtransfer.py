@@ -21,32 +21,21 @@ import time
 import socket
 import config
 import json
-import urllib
 import sys
 
 if config.API_ENABLED:
     if sys.version_info >= (3, 0):
-        # If using python 3, use urllib instead of urllib2
+        # If using python 3, use urllib.parse and urllib.request instead of urllib and urllib2
+        from urllib.parse import urlencode
         from urllib.request import Request, urlopen
     else:
+        from urllib import urlencode
         from urllib2 import Request, urlopen
 else:
     import cymysql
 
 
 class DbTransfer(object):
-
-    instance = None
-
-    def __init__(self):
-        self.last_get_transfer = {}
-
-    @staticmethod
-    def get_instance():
-        if DbTransfer.instance is None:
-            DbTransfer.instance = DbTransfer()
-        return DbTransfer.instance
-
     @staticmethod
     def send_command(cmd):
         data = ''
@@ -89,7 +78,7 @@ class DbTransfer(object):
 
     @staticmethod
     def http_post(url, data):
-        data = urllib.urlencode(data)
+        data = urlencode(data).encode()
         req = Request(url, data)
         response = urlopen(req)
         response_data = response.read()
@@ -98,9 +87,19 @@ class DbTransfer(object):
         return response_data
 
     @staticmethod
+    def start_server(row, restart=False):
+        if restart:
+            DbTransfer.send_command('remove: {"server_port":%d}' % row[0])
+            time.sleep(0.1)
+        DbTransfer.send_command(
+            'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' %
+            (row[0], row[4], row[7], row[8])
+        )
+
+    @staticmethod
     def del_server_out_of_bound_safe(rows):
         for row in rows:
-            server = json.loads(DbTransfer.get_instance().send_command(
+            server = json.loads(DbTransfer.send_command(
                 'stat: {"server_port":%s}' % row[0]))
             if server['stat'] != 'ko':
                 if row[5] == 0 or row[6] == 0:
@@ -119,8 +118,7 @@ class DbTransfer(object):
                     # password changed
                     logging.info(
                         'U[%d] Server is restarting: password is changed' % row[0])
-                    DbTransfer.send_command(
-                        'remove: {"server_port":%d}' % row[0])
+                    DbTransfer.start_server(row, True)
                 else:
                     if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
@@ -128,14 +126,12 @@ class DbTransfer(object):
                         # encryption method changed
                         logging.info(
                             'U[%d] Server is restarting: encryption method is changed' % row[0])
-                        DbTransfer.send_command(
-                            'remove: {"server_port":%d}' % row[0])
+                        DbTransfer.start_server(row, True)
             else:
-                if (row[5] == 1 or row[5] == "1") and row[6] == 1 and row[1] + row[2] < row[3]:
+                if row[5] != 0 and row[6] != 0 and row[1] + row[2] < row[3]:
                     if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
-                    DbTransfer.send_command(
-                        'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' % (row[0], row[4], row[7], row[8]))
+                    DbTransfer.start_server(row)
                     if config.MANAGER_BIND_IP != '127.0.0.1':
                         logging.info(
                             'U[%s] Server Started with password [%s] and method [%s]' % (row[0], row[4], row[7]))
