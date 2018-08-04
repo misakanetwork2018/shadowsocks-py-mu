@@ -128,7 +128,7 @@ def main():
     thread.start_new_thread(manager.run, (config_passed, subprocess_callback,))
     time.sleep(5)
     logging.info('Now starting user pulling thread...')
-    thread.start_new_thread(DbTransfer.thread_db, ())
+    thread.start_new_thread(DbTransfer.thread_pull, ())
     time.sleep(5)
     logging.info('Now starting user pushing thread...')
     thread.start_new_thread(DbTransfer.thread_push, ())
