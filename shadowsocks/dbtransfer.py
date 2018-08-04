@@ -62,7 +62,7 @@ class DbTransfer(object):
             if config.SS_VERBOSE:
                 import traceback
                 traceback.print_exc()
-            logging.warn('Exception thrown when sending command: %s' % e)
+            logging.warning('Exception thrown when sending command: %s' % e)
         return data
 
     @staticmethod
@@ -96,7 +96,7 @@ class DbTransfer(object):
                         user = result[9]
                         break
                 if not user:
-                    logging.warn('U[%s] User Not Found', port)
+                    logging.warning('U[%s] User Not Found', port)
                     server = json.loads(DbTransfer.get_instance().send_command(
                         'stat: {"server_port":%s}' % port))
                     if server['stat'] != 'ko':

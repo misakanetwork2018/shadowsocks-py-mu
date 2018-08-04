@@ -631,7 +631,7 @@ class TCPRelayHandler(object):
             if event & eventloop.POLL_OUT:
                 self._on_local_write()
         else:
-            logging.warn('unknown socket')
+            logging.warning('unknown socket')
 
     def _log_error(self, e):
         if self._local_sock:
@@ -772,10 +772,10 @@ class TCPRelay(object):
                         break
                     else:
                         if handler.remote_address:
-                            logging.warn('timed out: %s:%d' %
+                            logging.warning('timed out: %s:%d' %
                                          handler.remote_address)
                         else:
-                            logging.warn('timed out')
+                            logging.warning('timed out')
                         handler.destroy()
                         self._timeouts[pos] = None  # free memory
                         pos += 1
@@ -822,7 +822,7 @@ class TCPRelay(object):
                 if handler:
                     handler.handle_event(sock, event)
             else:
-                logging.warn('poll removed fd')
+                logging.warning('poll removed fd')
 
     def handle_periodic(self):
         if self._closed:
