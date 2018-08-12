@@ -323,7 +323,7 @@ if sys.platform == "win32":
         EventLoop = UvEventLoop
         logging.info('[Win32] Using EventLoop as UvEventLoop')
     except:
-        logging.warn(
+        logging.warning(
             '[Win32] Using EventLoop as PyEventLoop. try install pyuv https://pypi.python.org/pypi/pyuv')
 
 

@@ -21,32 +21,28 @@ import time
 import socket
 import config
 import json
-import urllib
-# TODO: urllib2 does not exist in python 3.5+
-import urllib2
-if not config.API_ENABLED:
-	import cymysql
+import sys
+
+if config.API_ENABLED:
+    if sys.version_info >= (3, 0):
+        # If using python 3, use urllib.parse and urllib.request instead of urllib and urllib2
+        from urllib.parse import urlencode
+        from urllib.request import Request, urlopen
+    else:
+        from urllib import urlencode
+        from urllib2 import Request, urlopen
+else:
+    import cymysql
+
 
 class DbTransfer(object):
-
-    instance = None
-
-    def __init__(self):
-        self.last_get_transfer = {}
-
-    @staticmethod
-    def get_instance():
-        if DbTransfer.instance is None:
-            DbTransfer.instance = DbTransfer()
-        return DbTransfer.instance
-
     @staticmethod
     def send_command(cmd):
         data = ''
         try:
             cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             cli.settimeout(2)
-            cli.sendto(cmd, ('%s' % config.MANAGER_BIND_IP, config.MANAGER_PORT))
+            cli.sendto(cmd.encode(), ('%s' % config.MANAGER_BIND_IP, config.MANAGER_PORT))
             data, addr = cli.recvfrom(1500)
             cli.close()
             # TODO: bad way solve timed out
@@ -55,132 +51,55 @@ class DbTransfer(object):
             if config.SS_VERBOSE:
                 import traceback
                 traceback.print_exc()
-            logging.warn('Exception thrown when sending command: %s' % e)
+            logging.warning('Exception thrown when sending command: %s' % e)
         return data
 
     @staticmethod
     def get_servers_transfer():
+        DbTransfer.verbose_print('request transfer count from manager - start')
         dt_transfer = {}
         cli = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         cli.settimeout(2)
-        cli.sendto('transfer: {}', (config.MANAGER_BIND_IP, config.MANAGER_PORT))
+        cli.sendto(b'transfer: {}', (config.MANAGER_BIND_IP, config.MANAGER_PORT))
         while True:
             data, addr = cli.recvfrom(1500)
-            if data == 'e':
+            if data == b'e':
                 break
-            data = json.loads(data)
-            # print data
+            print("data %s" % data)
             dt_transfer.update(data)
         cli.close()
+        DbTransfer.verbose_print('request transfer count from manager - done')
         return dt_transfer
 
-    def push_db_all_user(self):
-        dt_transfer = self.get_servers_transfer()
+    @staticmethod
+    def verbose_print(msg):
+        if config.SS_VERBOSE:
+            logging.info(msg)
 
-        if config.API_ENABLED:
-            i = 0
-            if config.SS_VERBOSE:
-                logging.info('api upload: pushing transfer statistics')
-            users = DbTransfer.pull_api_user()
-            for port in dt_transfer.keys():
-                user = None
-                for result in users:
-                    if str(result[0]) == port:
-                        user = result[9]
-                        break
-                if not user:
-                    logging.warn('U[%s] User Not Found', port)
-                    server = json.loads(DbTransfer.get_instance().send_command(
-                        'stat: {"server_port":%s}' % port))
-                    if server['stat'] != 'ko':
-                        logging.info(
-                            'U[%s] Server has been stopped: user is removed' % port)
-                        DbTransfer.send_command(
-                            'remove: {"server_port":%s}' % port)
-                    continue
-                if config.SS_VERBOSE:
-                    logging.info('U[%s] User ID Obtained:%s' % (port, user))
-                tran = str(dt_transfer[port])
-                data = {'d': tran, 'node_id': config.API_NODE_ID, 'u': '0'}
-                url = config.API_URL + '/users/' + \
-                    str(user) + '/traffic?key=' + config.API_PASS
-                data = urllib.urlencode(data)
-                req = urllib2.Request(url, data)
-                response = urllib2.urlopen(req)
-                the_page = response.read()
-                if config.SS_VERBOSE:
-                    logging.info('%s - %s - %s' % (url, data, the_page))
-                i += 1
+    @staticmethod
+    def http_post(url, data):
+        data = urlencode(data).encode()
+        req = Request(url, data)
+        response = urlopen(req)
+        response_data = response.read()
+        response.close()
+        DbTransfer.verbose_print('%s - %s - %s' % (url, data, response_data))
+        return response_data
 
-            # online user count
-            if config.SS_VERBOSE:
-                logging.info('api upload: pushing online user count')
-            data = {'count': i}
-            url = config.API_URL + '/nodes/' + config.API_NODE_ID + \
-                '/online_count?key=' + config.API_PASS
-            data = urllib.urlencode(data)
-            req = urllib2.Request(url, data)
-            response = urllib2.urlopen(req)
-            the_page = response.read()
-            if config.SS_VERBOSE:
-                logging.info('%s - %s - %s' % (url, data, the_page))
-
-            # load info
-            if config.SS_VERBOSE:
-                logging.info('api upload: pushing node status')
-            url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/info?key=' + config.API_PASS
-            f = open("/proc/loadavg")
-            load = f.read().split()
-            f.close()
-            loadavg = load[0] + ' ' + load[1] + ' ' + \
-                load[2] + ' ' + load[3] + ' ' + load[4]
-            f = open("/proc/uptime")
-            uptime = f.read().split()
-            uptime = uptime[0]
-            f.close()
-            data = {'load': loadavg, 'uptime': uptime}
-            data = urllib.urlencode(data)
-            req = urllib2.Request(url, data)
-            response = urllib2.urlopen(req)
-            the_page = response.read()
-            if config.SS_VERBOSE:
-                logging.info('%s - %s - %s' % (url, data, the_page))
-                logging.info('api uploaded')
-        else:
-            query_head = 'UPDATE `user`'
-            query_sub_when = ''
-            query_sub_when2 = ''
-            query_sub_in = None
-            last_time = time.time()
-            for port in dt_transfer.keys():
-                query_sub_when += ' WHEN %s THEN `u`+%s' % (port, 0)  # all in d
-                query_sub_when2 += ' WHEN %s THEN `d`+%s' % (
-                    port, dt_transfer[port])
-                if query_sub_in is not None:
-                    query_sub_in += ',%s' % port
-                else:
-                    query_sub_in = '%s' % port
-            if query_sub_when == '':
-                return
-            query_sql = query_head + ' SET u = CASE port' + query_sub_when + \
-                ' END, d = CASE port' + query_sub_when2 + \
-                ' END, t = ' + str(int(last_time)) + \
-                ' WHERE port IN (%s)' % query_sub_in
-            # print query_sql
-            conn = cymysql.connect(host=config.MYSQL_HOST, port=config.MYSQL_PORT, user=config.MYSQL_USER,
-                                   passwd=config.MYSQL_PASS, db=config.MYSQL_DB, charset='utf8')
-            cur = conn.cursor()
-            cur.execute(query_sql)
-            cur.close()
-            conn.commit()
-            conn.close()
-            if config.SS_VERBOSE:
-                logging.info('db uploaded')
+    @staticmethod
+    def start_server(row, restart=False):
+        if restart:
+            DbTransfer.send_command('remove: {"server_port":%d}' % row[0])
+            time.sleep(0.1)
+        DbTransfer.send_command(
+            'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' %
+            (row[0], row[4], row[7], row[8])
+        )
 
     @staticmethod
     def del_server_out_of_bound_safe(rows):
         for row in rows:
-            server = json.loads(DbTransfer.get_instance().send_command(
+            server = json.loads(DbTransfer.send_command(
                 'stat: {"server_port":%s}' % row[0]))
             if server['stat'] != 'ko':
                 if row[5] == 0 or row[6] == 0:
@@ -190,17 +109,16 @@ class DbTransfer(object):
                     DbTransfer.send_command(
                         'remove: {"server_port":%d}' % row[0])
                 elif row[1] + row[2] >= row[3]:
-                    # stop user that exceeds bandwidth limit
+                    # stop user that exceeds data transfer limit
                     logging.info(
-                        'U[%d] Server has been stopped: bandwith exceeded' % row[0])
+                        'U[%d] Server has been stopped: data transfer limit exceeded' % row[0])
                     DbTransfer.send_command(
                         'remove: {"server_port":%d}' % row[0])
                 elif server['password'] != row[4]:
                     # password changed
                     logging.info(
                         'U[%d] Server is restarting: password is changed' % row[0])
-                    DbTransfer.send_command(
-                        'remove: {"server_port":%d}' % row[0])
+                    DbTransfer.start_server(row, True)
                 else:
                     if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
@@ -208,24 +126,25 @@ class DbTransfer(object):
                         # encryption method changed
                         logging.info(
                             'U[%d] Server is restarting: encryption method is changed' % row[0])
-                        DbTransfer.send_command(
-                            'remove: {"server_port":%d}' % row[0])
+                        DbTransfer.start_server(row, True)
             else:
-                if (row[5] == 1 or row[5] == "1") and row[6] == 1 and row[1] + row[2] < row[3]:
+                if row[5] != 0 and row[6] != 0 and row[1] + row[2] < row[3]:
                     if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
-                    DbTransfer.send_command(
-                        'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' % (row[0], row[4], row[7], row[8]))
+                    DbTransfer.start_server(row)
                     if config.MANAGER_BIND_IP != '127.0.0.1':
                         logging.info(
                             'U[%s] Server Started with password [%s] and method [%s]' % (row[0], row[4], row[7]))
 
     @staticmethod
-    def thread_db():
+    def thread_pull():
         socket.setdefaulttimeout(config.TIMEOUT)
         while True:
             try:
-                rows = DbTransfer.pull_db_all_user()
+                if config.API_ENABLED:
+                    rows = DbTransfer.pull_api_user()
+                else:
+                    rows = DbTransfer.pull_db_user()
                 DbTransfer.del_server_out_of_bound_safe(rows)
             except Exception as e:
                 if config.SS_VERBOSE:
@@ -236,63 +155,17 @@ class DbTransfer(object):
                 time.sleep(config.CHECKTIME)
 
     @staticmethod
-    def thread_push():
-        socket.setdefaulttimeout(config.TIMEOUT)
-        while True:
-            try:
-                DbTransfer.get_instance().push_db_all_user()
-            except Exception as e:
-                import traceback
-                if config.SS_VERBOSE:
-                    traceback.print_exc()
-                logging.error('Except thrown while pushing user data:%s' % e)
-            finally:
-                time.sleep(config.SYNCTIME)
-
-    @staticmethod
-    def pull_db_all_user():
-        if config.API_ENABLED:
-            rows = DbTransfer.pull_api_user()
-            if config.SS_VERBOSE:
-                logging.info('api downloaded')
-            return rows
-        else:
-            string = ''
-            for index in range(len(config.SS_SKIP_PORTS)):
-                port = config.SS_SKIP_PORTS[index]
-                if config.SS_VERBOSE:
-                    logging.info('db skipped port %d' % port)
-                if index == 0:
-                    string = ' WHERE `port`<>%d' % port
-                else:
-                    string = '%s AND `port`<>%d' % (string, port)
-            conn = cymysql.connect(host=config.MYSQL_HOST, port=config.MYSQL_PORT, user=config.MYSQL_USER,
-                                   passwd=config.MYSQL_PASS, db=config.MYSQL_DB, charset='utf8')
-            cur = conn.cursor()
-            cur.execute('SELECT port, u, d, transfer_enable, passwd, switch, enable, method, email FROM %s%s ORDER BY `port` ASC'
-                        % (config.MYSQL_USER_TABLE, string))
-            rows = []
-            for r in cur.fetchall():
-                rows.append(list(r))
-            # Release resources
-            cur.close()
-            conn.close()
-            if config.SS_VERBOSE:
-                logging.info('db downloaded')
-            return rows
-
-    @staticmethod
     def pull_api_user():
+        DbTransfer.verbose_print('api download - start')
         # Node parameter is not included for the ORIGINAL version of SS-Panel V3
         url = config.API_URL + '/users?key=' + config.API_PASS + '&node=' + config.API_NODE_ID
-        f = urllib.urlopen(url)
-        data = json.load(f)
-        f.close()
+        response = urlopen(url)
+        response_data = json.load(response)
+        response.close()
         rows = []
-        for user in data['data']:
+        for user in response_data['data']:
             if user['port'] in config.SS_SKIP_PORTS:
-                if config.SS_VERBOSE:
-                    logging.info('api skipped port %d' % user['port'])
+                DbTransfer.verbose_print('api skipped port %d' % user['port'])
             else:
                 rows.append([
                     user['port'],
@@ -306,4 +179,131 @@ class DbTransfer(object):
                     user['email'],
                     user['id']
                 ])
+        DbTransfer.verbose_print('api download - done')
         return rows
+
+    @staticmethod
+    def pull_db_user():
+        DbTransfer.verbose_print('db download - start')
+        string = ''
+        for index in range(len(config.SS_SKIP_PORTS)):
+            port = config.SS_SKIP_PORTS[index]
+            DbTransfer.verbose_print('db skipped port %d' % port)
+            if index == 0:
+                string = ' WHERE `port`<>%d' % port
+            else:
+                string = '%s AND `port`<>%d' % (string, port)
+        conn = cymysql.connect(host=config.MYSQL_HOST, port=config.MYSQL_PORT, user=config.MYSQL_USER,
+                               passwd=config.MYSQL_PASS, db=config.MYSQL_DB, charset='utf8')
+        cur = conn.cursor()
+        cur.execute('SELECT port, u, d, transfer_enable, passwd, switch, enable, method, email FROM %s%s ORDER BY `port` ASC'
+                    % (config.MYSQL_USER_TABLE, string))
+        rows = []
+        for r in cur.fetchall():
+            rows.append(list(r))
+        # Release resources
+        cur.close()
+        conn.close()
+        DbTransfer.verbose_print('db download - done')
+        return rows
+
+    @staticmethod
+    def thread_push():
+        socket.setdefaulttimeout(config.TIMEOUT)
+        while True:
+            try:
+                dt_transfer = DbTransfer.get_servers_transfer()
+                if config.API_ENABLED:
+                    DbTransfer.push_api_user(dt_transfer)
+                else:
+                    DbTransfer.push_db_user(dt_transfer)
+            except Exception as e:
+                import traceback
+                if config.SS_VERBOSE:
+                    traceback.print_exc()
+                logging.error('Except thrown while pushing user data:%s' % e)
+            finally:
+                time.sleep(config.SYNCTIME)
+
+    @staticmethod
+    def push_api_user(dt_transfer):
+        i = 0
+        DbTransfer.verbose_print('api upload: pushing transfer statistics - start')
+        users = DbTransfer.pull_api_user()
+        for port in dt_transfer.keys():
+            user = None
+            for result in users:
+                if str(result[0]) == port:
+                    user = result[9]
+                    break
+            if not user:
+                logging.warning('U[%s] User Not Found', port)
+                server = json.loads(DbTransfer.get_instance().send_command(
+                    'stat: {"server_port":%s}' % port))
+                if server['stat'] != 'ko':
+                    logging.info(
+                        'U[%s] Server has been stopped: user is removed' % port)
+                    DbTransfer.send_command(
+                        'remove: {"server_port":%s}' % port)
+                continue
+            DbTransfer.verbose_print('U[%s] User ID Obtained:%s' % (port, user))
+            tran = str(dt_transfer[port])
+            data = {'d': tran, 'node_id': config.API_NODE_ID, 'u': '0'}
+            url = config.API_URL + '/users/' + str(user) + '/traffic?key=' + config.API_PASS
+            DbTransfer.http_post(url, data)
+            DbTransfer.verbose_print('api upload: pushing transfer statistics - done')
+            i += 1
+
+        # online user count
+        DbTransfer.verbose_print('api upload: pushing online user count - start')
+        data = {'count': i}
+        url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/online_count?key=' + config.API_PASS
+        DbTransfer.http_post(url, data)
+        DbTransfer.verbose_print('api upload: pushing online user count - done')
+
+        # load info
+        DbTransfer.verbose_print('api upload: node status - start')
+        url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/info?key=' + config.API_PASS
+        f = open("/proc/loadavg")
+        load = f.read().split()
+        f.close()
+        loadavg = load[0] + ' ' + load[1] + ' ' + load[2] + ' ' + load[3] + ' ' + load[4]
+        f = open("/proc/uptime")
+        uptime = f.read().split()
+        uptime = uptime[0]
+        f.close()
+        data = {'load': loadavg, 'uptime': uptime}
+        DbTransfer.http_post(url, data)
+        DbTransfer.verbose_print('api upload: node status - done')
+
+    @staticmethod
+    def push_db_user(dt_transfer):
+        DbTransfer.verbose_print('db upload - start')
+        query_head = 'UPDATE `user`'
+        query_sub_when = ''
+        query_sub_when2 = ''
+        query_sub_in = None
+        last_time = time.time()
+        for port in dt_transfer.keys():
+            query_sub_when += ' WHEN %s THEN `u`+%s' % (port, 0)  # all in d
+            query_sub_when2 += ' WHEN %s THEN `d`+%s' % (
+                port, dt_transfer[port])
+            if query_sub_in is not None:
+                query_sub_in += ',%s' % port
+            else:
+                query_sub_in = '%s' % port
+        if query_sub_when == '':
+            return
+        query_sql = query_head + ' SET u = CASE port' + query_sub_when + \
+            ' END, d = CASE port' + query_sub_when2 + \
+            ' END, t = ' + str(int(last_time)) + \
+            ' WHERE port IN (%s)' % query_sub_in
+        # print query_sql
+        conn = cymysql.connect(host=config.MYSQL_HOST, port=config.MYSQL_PORT, user=config.MYSQL_USER,
+                               passwd=config.MYSQL_PASS, db=config.MYSQL_DB, charset='utf8')
+        cur = conn.cursor()
+        cur.execute(query_sql)
+        cur.close()
+        conn.commit()
+        conn.close()
+        DbTransfer.verbose_print('db upload - done')

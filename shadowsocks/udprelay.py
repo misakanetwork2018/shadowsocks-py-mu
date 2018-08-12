@@ -169,7 +169,7 @@ class UDPRelay(object):
             else:
                 frag = common.ord(data[2])
                 if frag != 0:
-                    logging.warn('UDP drop a message since frag is not 0')
+                    logging.warning('UDP drop a message since frag is not 0')
                     return
                 else:
                     data = data[3:]

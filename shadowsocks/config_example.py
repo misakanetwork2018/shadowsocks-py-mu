@@ -20,7 +20,7 @@ SYNCTIME = 300
 # Timeout for MySQL connection or web socket (if using API)
 TIMEOUT = 30
 
-# MySQL Database Config (NO NEED to edit if you set 'True' above)
+# MySQL Database Config (NO NEED to edit if you set API_ENABLED 'True' above)
 MYSQL_HOST = 'db.example.net'
 MYSQL_PORT = 3306
 MYSQL_USER = 'root'

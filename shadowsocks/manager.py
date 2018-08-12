@@ -36,6 +36,7 @@ STAT_SEND_LIMIT = 50
 # Get list of AEAD ciphers
 aead_ciphers = CIPHER_NONCE_LEN.keys()
 
+
 class Manager(object):
 
     def __init__(self, config):
@@ -205,6 +206,8 @@ class Manager(object):
             return
 
         try:
+            if type(data) is str:
+                data = data.encode()
             self._control_socket.sendto(data, self._control_client_addr)
         except (socket.error, OSError, IOError) as e:
             error_no = eventloop.errno_from_exception(e)
@@ -304,7 +307,7 @@ def test():
     data = cryptor.encrypt_all(b'foobar2', 'aes-256-cfb',
                                header + b'test')
     udp_cli = socket.socket(type=socket.SOCK_DGRAM)
-    udp_cli.sendto(data, ('127.0.0.1', 8382))
+    udp_cli.sendto(data.encode(), ('127.0.0.1', 8382))
     tcp_cli.close()
 
     data, addr = cli.recvfrom(1506)
