@@ -65,7 +65,7 @@ class DbTransfer(object):
             data, addr = cli.recvfrom(1500)
             if data == b'e':
                 break
-            print("data %s" % data)
+            data = json.loads(data)
             dt_transfer.update(data)
         cli.close()
         DbTransfer.verbose_print('request transfer count from manager - done')
