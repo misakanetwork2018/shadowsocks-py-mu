@@ -166,6 +166,14 @@ class DbTransfer(object):
         for user in response_data['data']:
             if user['port'] in config.SS_SKIP_PORTS:
                 DbTransfer.verbose_print('api skipped port %d' % user['port'])
+            elif user.get('switch') == 0 or user['enable'] == 0:
+                rows.append([
+                    user['port'],
+                    None, None, None, None,
+                    user.get('switch'),
+                    user['enable'],
+                    None, None, None
+                ])
             else:
                 rows.append([
                     user['port'],
