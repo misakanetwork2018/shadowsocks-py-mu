@@ -320,7 +320,7 @@ def get_config(is_local):
         sys.exit(2)
 
     config['password'] = to_bytes(config.get('password', b''))
-    config['method'] = to_str(config.get('method', 'aes-256-cfb'))
+    config['method'] = to_str(config.get('method', 'chacha20-ietf-poly1305'))
     config['port_password'] = config.get('port_password', None)
     config['timeout'] = int(config.get('timeout', 300))
     config['fast_open'] = config.get('fast_open', False)
@@ -384,7 +384,7 @@ Proxy options:
   -b LOCAL_ADDR          local binding address, default: 127.0.0.1
   -l LOCAL_PORT          local port, default: 1080
   -k PASSWORD            password
-  -m METHOD              encryption method, default: aes-256-cfb
+  -m METHOD              encryption method, default: chacha20-ietf-poly1305
                          Sodium:
                             chacha20-poly1305, chacha20-ietf-poly1305,
                             xchacha20-ietf-poly1305,
@@ -438,7 +438,7 @@ Proxy options:
   -s SERVER_ADDR         server address, default: 0.0.0.0
   -p SERVER_PORT         server port, default: 8388
   -k PASSWORD            password
-  -m METHOD              encryption method, default: aes-256-cfb
+  -m METHOD              encryption method, default: chacha20-ietf-poly1305
                          Sodium:
                             chacha20-poly1305, chacha20-ietf-poly1305,
                             xchacha20-ietf-poly1305,

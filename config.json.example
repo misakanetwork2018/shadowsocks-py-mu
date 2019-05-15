@@ -4,7 +4,7 @@
     "local_port":1080,
     "password":"password",
     "timeout":600,
-    "method":"aes-256-cfb",
+    "method":"chacha20-ietf-poly1305",
     "local_address":"127.0.0.1",
     "fast_open":false,
     "tunnel_remote":"8.8.8.8",
