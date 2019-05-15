@@ -27,9 +27,13 @@ import socket
 import logging
 import json
 import collections
-
-from shadowsocks import common, eventloop, tcprelay, udprelay, asyncdns, shell
-from shadowsocks.crypto.aead import CIPHER_NONCE_LEN
+import common
+import eventloop
+import tcprelay
+import udprelay
+import asyncdns
+import shell
+from crypto.aead import CIPHER_NONCE_LEN
 
 
 BUF_SIZE = 1506
@@ -92,7 +96,7 @@ class Manager(object):
         if self._is_unix:
             try:
                 os.unlink(self._mngr_address)
-            except:
+            except BaseException:
                 pass
 
     def add_port(self, config):
@@ -104,8 +108,9 @@ class Manager(object):
             return
         # Check if AEAD cipher is enforced
         if config['aead_enforcement'] and config['method'] not in aead_ciphers:
-            logging.warning("AEAD Cipher Enforced - Rejected Server: P[%d], M[%s], E[%s]" % (
-                port, config['method'], config['email']))
+            logging.warning(
+                "AEAD Cipher Enforced - Rejected Server: P[%d], M[%s], E[%s]" %
+                (port, config['method'], config['email']))
             return
         t = tcprelay.TCPRelay(config, self._dns_resolver, False,
                               self.stat_callback)
@@ -135,8 +140,9 @@ class Manager(object):
         servers = self._relays.get(port, None)
         if servers:
             # Server is now running
-            self._send_control_data(b'{"stat":"ok", "password":"%s", "method":"%s"}' % (
-                servers[0]._config['password'], servers[0]._config['method']))
+            self._send_control_data(
+                b'{"stat":"ok", "password":"%s", "method":"%s"}' %
+                (servers[0]._config['password'], servers[0]._config['method']))
         else:
             # Server is not running
             self._send_control_data(b'{"stat":"ko"}')
@@ -220,7 +226,7 @@ class Manager(object):
             return
 
         try:
-            if type(data) is str:
+            if isinstance(data, str):
                 data = data.encode()
             self._control_socket.sendto(data, self._control_client_addr)
         except (socket.error, OSError, IOError) as e:
@@ -242,7 +248,8 @@ def run(config, callback):
         Manager(config).run()
     except Exception as e:
         callback('Manager', e)
-        logging.error('Unhandled exception is thrown in manager thread, exiting...')
+        logging.error(
+            'Unhandled exception is thrown in manager thread, exiting...')
         exit('manager thread crashed')
 
 
@@ -250,7 +257,7 @@ def test():
     import time
     import threading
     import struct
-    from shadowsocks import cryptor
+    import cryptor
 
     logging.basicConfig(level=5,
                         format='%(asctime)s %(levelname)-8s %(message)s',
@@ -334,6 +341,7 @@ def test():
 
     manager._loop.stop()
     t.join()
+
 
 if __name__ == '__main__':
     test()

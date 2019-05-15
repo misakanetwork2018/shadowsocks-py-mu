@@ -68,11 +68,12 @@ import logging
 import struct
 import errno
 import random
-
-from shadowsocks import cryptor, eventloop, lru_cache, common, shell
-from shadowsocks.common import parse_header, pack_addr, onetimeauth_verify, \
-    onetimeauth_gen, ONETIMEAUTH_BYTES, ADDRTYPE_AUTH
-
+import cryptor
+import eventloop
+import lru_cache
+import common
+import shell
+from common import parse_header, pack_addr
 
 BUF_SIZE = 65536
 
@@ -131,9 +132,9 @@ class UDPRelay(object):
     def _get_a_server(self):
         server = self._config['server']
         server_port = self._config['server_port']
-        if type(server_port) == list:
+        if isinstance(server_port, list):
             server_port = random.choice(server_port)
-        if type(server) == list:
+        if isinstance(server, list):
             server = random.choice(server)
         logging.debug('U[%d] UDP Chosen server: %s:%d' %
                       (self._config['server_port'], server, server_port))
@@ -180,14 +181,14 @@ class UDPRelay(object):
                                                     self._method,
                                                     data)
             except Exception:
-                logging.debug('U[%d] UDP handle_server: decrypt data failed' % self._config[
-                    'server_port'])
+                logging.debug(
+                    'U[%d] UDP handle_server: decrypt data failed' %
+                    self._config['server_port'])
                 return
             if not data:
                 logging.debug(
-                    'U[%d] UDP handle_server: data is empty after decrypt' % self._config[
-                        'server_port']
-                )
+                    'U[%d] UDP handle_server: data is empty after decrypt' %
+                    self._config['server_port'])
                 return
         header_result = parse_header(data)
         if header_result is None:
@@ -236,8 +237,8 @@ class UDPRelay(object):
             # TODO async getaddrinfo
             if self._forbidden_iplist:
                 if common.to_str(sa[0]) in self._forbidden_iplist:
-                    logging.debug('U[%d] IP %s is in forbidden list, drop' %
-                                  (self._config['server_port'], common.to_str(sa[0])))
+                    logging.debug('U[%d] IP %s is in forbidden list, drop' % (
+                        self._config['server_port'], common.to_str(sa[0])))
                     # drop
                     return
             client = socket.socket(af, socktype, proto)
@@ -311,7 +312,8 @@ class UDPRelay(object):
                 return
             if not data:
                 return
-            if parse_header(data) is None:
+            header_result = parse_header(data)
+            if header_result is None:
                 return
             addrtype, dest_addr, dest_port, header_length = header_result
             if self._is_tunnel:

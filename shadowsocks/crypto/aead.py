@@ -19,9 +19,9 @@ from ctypes import c_int, create_string_buffer, byref, c_void_p
 import hashlib
 from struct import pack, unpack
 
-from shadowsocks.crypto import util
-from shadowsocks.crypto import hkdf
-from shadowsocks.common import ord, chr
+from crypto import util
+from crypto import hkdf
+from common import ord, chr
 
 
 EVP_CTRL_GCM_SET_IVLEN = 0x9

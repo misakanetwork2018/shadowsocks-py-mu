@@ -22,10 +22,13 @@ import sys
 import os
 import logging
 import signal
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
-from shadowsocks import shell, daemon, eventloop, tcprelay, udprelay, \
-    asyncdns, manager
+import shell
+import daemon
+import eventloop
+import tcprelay
+import udprelay
+import asyncdns
+import manager
 
 
 def main():
@@ -37,13 +40,14 @@ def main():
 
     if config['port_password']:
         if config['password']:
-            logging.warning('warning: port_password should not be used with '
-                         'server_port and password. server_port and password '
-                         'will be ignored')
+            logging.warning(
+                'warning: port_password should not be used with '
+                'server_port and password. server_port and password '
+                'will be ignored')
     else:
         config['port_password'] = {}
         server_port = config['server_port']
-        if type(server_port) == list:
+        if isinstance(server_port, list):
             for a_server_port in server_port:
                 config['port_password'][a_server_port] = config['password']
         else:

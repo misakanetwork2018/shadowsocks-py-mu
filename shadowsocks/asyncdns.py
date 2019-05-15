@@ -18,14 +18,15 @@
 from __future__ import absolute_import, division, print_function, \
     with_statement
 
-import sys
 import os
 import socket
 import struct
 import re
 import logging
-
-from shadowsocks import common, lru_cache, eventloop, shell
+import common
+import lru_cache
+import eventloop
+import shell
 
 
 CACHE_SWEEP_INTERVAL = 30
@@ -287,7 +288,7 @@ class DNSResolver(object):
 
                     server = parts[1]
                     if common.is_ip(server) == socket.AF_INET:
-                        if type(server) != str:
+                        if not isinstance(server, str):
                             server = server.decode('utf8')
                         self._servers.append(server)
         except IOError:
@@ -411,7 +412,7 @@ class DNSResolver(object):
             self._sock.sendto(req, (server, 53))
 
     def resolve(self, hostname, callback):
-        if type(hostname) != bytes:
+        if not isinstance(hostname, bytes):
             hostname = hostname.encode('utf8')
         if not hostname:
             callback(None, Exception('empty hostname'))

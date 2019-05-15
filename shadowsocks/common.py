@@ -43,7 +43,7 @@ def onetimeauth_gen(data, key):
 
 
 def compat_ord(s):
-    if type(s) == int:
+    if isinstance(s, int):
         return s
     return _ord(s)
 
@@ -62,14 +62,14 @@ chr = compat_chr
 
 def to_bytes(s):
     if bytes != str:
-        if type(s) == str:
+        if isinstance(s, str):
             return s.encode('utf-8')
     return s
 
 
 def to_str(s):
     if bytes != str:
-        if type(s) == bytes:
+        if isinstance(s, bytes):
             return s.decode('utf-8')
     return s
 
@@ -117,7 +117,7 @@ def inet_pton(family, addr):
 def is_ip(address):
     for family in (socket.AF_INET, socket.AF_INET6):
         try:
-            if type(address) != str:
+            if not isinstance(address, str):
                 address = address.decode('utf8')
             inet_pton(family, address)
             return family
@@ -201,7 +201,7 @@ def parse_header(data):
             logging.warning('header is too short')
     else:
         logging.warning('unsupported addrtype %d, maybe wrong password or '
-                     'encryption method' % addrtype)
+                        'encryption method' % addrtype)
     if dest_addr is None:
         return None
     return addrtype, to_bytes(dest_addr), dest_port, header_length
@@ -213,7 +213,7 @@ class IPNetwork(object):
     def __init__(self, addrs):
         self._network_list_v4 = []
         self._network_list_v6 = []
-        if type(addrs) == str:
+        if isinstance(addrs, str):
             addrs = addrs.split(',')
         list(map(self.add_network, addrs))
 
@@ -235,8 +235,10 @@ class IPNetwork(object):
             while (ip & 1) == 0 and ip is not 0:
                 ip >>= 1
                 prefix_size += 1
-            logging.warning("You did't specify CIDR routing prefix size for %s, "
-                         "implicit treated as %s/%d" % (addr, addr, addr_len))
+            logging.warning(
+                "You did't specify CIDR routing prefix size for %s, "
+                "implicit treated as %s/%d" %
+                (addr, addr, addr_len))
         elif block[1].isdigit() and int(block[1]) <= addr_len:
             prefix_size = addr_len - int(block[1])
             ip >>= prefix_size

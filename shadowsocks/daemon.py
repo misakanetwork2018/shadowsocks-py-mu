@@ -23,7 +23,8 @@ import sys
 import logging
 import signal
 import time
-from shadowsocks import common, shell
+import common
+import shell
 
 # this module is ported from ShadowVPN daemon.c
 

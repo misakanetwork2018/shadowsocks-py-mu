@@ -24,12 +24,10 @@ import sys
 import getopt
 import logging
 import config
+import cryptor
 import traceback
-
 from functools import wraps
-
-from shadowsocks.common import to_bytes, to_str, IPNetwork
-from shadowsocks import cryptor
+from common import to_bytes, to_str, IPNetwork
 
 
 VERBOSE_LEVEL = 5
@@ -167,7 +165,7 @@ def check_config(config, is_local):
     if 'local_port' in config:
         config['local_port'] = int(config['local_port'])
 
-    if 'server_port' in config and type(config['server_port']) != list:
+    if 'server_port' in config and not isinstance(config['server_port'], list):
         config['server_port'] = int(config['server_port'])
 
     if 'tunnel_remote_port' in config:
@@ -176,22 +174,27 @@ def check_config(config, is_local):
         config['tunnel_port'] = int(config['tunnel_port'])
 
     if config.get('local_address', '') in [b'0.0.0.0']:
-        logging.warning('warning: local set to listen on 0.0.0.0, it\'s not safe')
+        logging.warning(
+            'warning: local set to listen on 0.0.0.0, it\'s not safe')
     if config.get('server', '') in ['127.0.0.1', 'localhost']:
-        logging.warning('warning: server set to listen on %s:%s, are you sure?' %
-                     (to_str(config['server']), config['server_port']))
+        logging.warning(
+            'warning: server set to listen on %s:%s, are you sure?' %
+            (to_str(
+                config['server']),
+                config['server_port']))
     if (config.get('method', '') or '').lower() == 'table':
-        logging.warning('warning: table is not safe; please use a safer cipher, '
-                     'like AES-256-CFB')
+        logging.warning(
+            'warning: table is not safe; please use a safer cipher, '
+            'like AES-256-CFB')
     if (config.get('method', '') or '').lower() == 'rc4':
         logging.warning('warning: RC4 is not safe; please use a safer cipher, '
-                     'like AES-256-CFB')
+                        'like AES-256-CFB')
     if config.get('timeout', 300) < 100:
         logging.warning('warning: your timeout %d seems too short' %
-                     int(config.get('timeout')))
+                        int(config.get('timeout')))
     if config.get('timeout', 300) > 600:
         logging.warning('warning: your timeout %d seems too long' %
-                     int(config.get('timeout')))
+                        int(config.get('timeout')))
     if config.get('password') in [b'mypassword']:
         logging.error('DON\'T USE DEFAULT PASSWORD! Please change it in your '
                       'config.json!')
@@ -201,7 +204,7 @@ def check_config(config, is_local):
             logging.error('user can be used only on Unix')
             sys.exit(1)
     if config.get('dns_server', None) is not None:
-        if type(config['dns_server']) != list:
+        if not isinstance(config['dns_server'], list):
             config['dns_server'] = to_str(config['dns_server'])
         else:
             config['dns_server'] = [to_str(ds) for ds in config['dns_server']]

@@ -50,7 +50,7 @@ def load_library(path, search_symbol, library_name):
             return lib
         else:
             logging.warning('can\'t find symbol %s in %s', search_symbol,
-                         path)
+                            path)
     except Exception:
         pass
     return None

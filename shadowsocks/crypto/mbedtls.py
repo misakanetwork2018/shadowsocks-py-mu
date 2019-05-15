@@ -17,9 +17,9 @@ from __future__ import absolute_import, division, print_function, \
 from ctypes import c_char_p, c_int, c_size_t, byref,\
     create_string_buffer, c_void_p
 
-from shadowsocks import common
-from shadowsocks.crypto import util
-from shadowsocks.crypto.aead import AeadCryptoBase
+import common
+from crypto import util
+from crypto.aead import AeadCryptoBase
 
 __all__ = ['ciphers']
 
@@ -175,6 +175,7 @@ class MbedTLSCryptoBase(object):
     """
     MbedTLS crypto base class
     """
+
     def __init__(self, cipher_name, crypto_path=None):
         global loaded
         self._ctx = create_string_buffer(b'\0' * CIPHER_CTX_SIZE)
@@ -225,6 +226,7 @@ class MbedTLSAeadCrypto(MbedTLSCryptoBase, AeadCryptoBase):
     """
     Implement mbedtls Aead mode: gcm
     """
+
     def __init__(self, cipher_name, key, iv, op, crypto_path=None):
         if cipher_name[:len('mbedtls:')] == 'mbedtls:':
             cipher_name = cipher_name[len('mbedtls:'):]
@@ -360,6 +362,7 @@ class MbedTLSStreamCrypto(MbedTLSCryptoBase):
     """
     Crypto for stream modes: cfb, ofb, ctr
     """
+
     def __init__(self, cipher_name, key, iv, op, crypto_path=None):
         if cipher_name[:len('mbedtls:')] == 'mbedtls:':
             cipher_name = cipher_name[len('mbedtls:'):]

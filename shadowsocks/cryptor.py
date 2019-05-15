@@ -21,9 +21,8 @@ import os
 import sys
 import hashlib
 import logging
-
-from shadowsocks import common
-from shadowsocks.crypto import rc4_md5, openssl, mbedtls, sodium, table
+import common
+from crypto import rc4_md5, openssl, mbedtls, sodium, table
 
 
 CIPHER_ENC_ENCRYPTION = 1
@@ -43,6 +42,7 @@ method_supported.update(table.ciphers)
 
 def random_string(length):
     return os.urandom(length)
+
 
 cached_keys = {}
 

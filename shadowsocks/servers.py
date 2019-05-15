@@ -16,10 +16,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import traceback
+import manager
 import sys
 import os
 import logging
 import time
+from dbtransfer import DbTransfer
+from sys import platform
 # Check whether the config is correctly renamed
 try:
     import config
@@ -35,15 +39,18 @@ except ImportError:
 logger = logging.getLogger()
 logger.setLevel(config.LOG_LEVEL)
 consoleHandler = logging.StreamHandler(stream=sys.stdout)
-consoleHandler.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
+consoleHandler.setFormatter(
+    logging.Formatter(
+        config.LOG_FORMAT,
+        datefmt=config.LOG_DATE_FORMAT))
 consoleHandler.setLevel(config.LOG_LEVEL)
 
-from sys import platform
 if platform == 'linux' or platform == 'linux2':
     with open('/proc/1/cgroup', 'rt') as ifh:
         if 'docker' in ifh.read():
             print('[INFO] Running inside a docker.')
-            print('[INFO] Log file config will be ignored & log will not be printed to stdout.')
+            print(
+                '[INFO] Log file config will be ignored & log will not be printed to stdout.')
             config.LOG_FILE = 'shadowsocks.log'
         else:
             logger.addHandler(consoleHandler)
@@ -51,36 +58,45 @@ if platform == 'linux' or platform == 'linux2':
 if config.LOG_ENABLE:
     # If enabled logging to file, add a fileHandler as well
     if sys.version_info >= (2, 6) and platform != 'win32':
-        # If python version is >= 2.6 and it is not running on Windows, use WatchedFileHandler
+        # If python version is >= 2.6 and it is not running on Windows, use
+        # WatchedFileHandler
         import logging.handlers
         fileHandler = logging.handlers.WatchedFileHandler(config.LOG_FILE)
     else:
         fileHandler = logging.FileHandler(config.LOG_FILE)
-    fileHandler.setFormatter(logging.Formatter(config.LOG_FORMAT, datefmt=config.LOG_DATE_FORMAT))
+    fileHandler.setFormatter(
+        logging.Formatter(
+            config.LOG_FORMAT,
+            datefmt=config.LOG_DATE_FORMAT))
     fileHandler.setLevel(config.LOG_LEVEL)
     logger.addHandler(fileHandler)
 
 # Check whether the versions of config files match
 try:
     import config_example
-    if not hasattr(config, 'CONFIG_VERSION') or config.CONFIG_VERSION != config_example.CONFIG_VERSION:
-        logging.error('Your config file is outdated. Please update `config.py` according to `config_example.py`.')
+    if not hasattr(
+            config,
+            'CONFIG_VERSION') or config.CONFIG_VERSION != config_example.CONFIG_VERSION:
+        logging.error(
+            'Your config file is outdated. Please update `config.py` according to `config_example.py`.')
         sys.exit('config out-dated')
 except ImportError:
-    logging.error('DO NOT delete the example configuration! Please re-upload it or use `git reset` to recover the file!')
+    logging.error(
+        'DO NOT delete the example configuration! Please re-upload it or use `git reset` to recover the file!')
     sys.exit('example config file missing')
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
-import manager
-import traceback
-from dbtransfer import DbTransfer
 
 if os.path.isdir('../.git') and not os.path.exists('../.nogit'):
     import subprocess
     if "check_output" not in dir(subprocess):
         # Compatible with Python < 2.7
-        VERSION = subprocess.Popen(["git", "describe", "--tags", "--always"], stdout=subprocess.PIPE).communicate()[0]
+        VERSION = subprocess.Popen(["git",
+                                    "describe",
+                                    "--tags",
+                                    "--always"],
+                                   stdout=subprocess.PIPE).communicate()[0]
     else:
-        VERSION = subprocess.check_output(["git", "describe", "--tags", "--always"])
+        VERSION = subprocess.check_output(
+            ["git", "describe", "--tags", "--always"])
     # Remove EOL characters in git's output
     VERSION = VERSION.rstrip()
 else:
@@ -132,7 +148,7 @@ def main():
     time.sleep(5)
     logging.info('Now starting user pushing thread...')
     thread.start_new_thread(DbTransfer.thread_push, ())
-    
+
     while True:
         time.sleep(100)
 

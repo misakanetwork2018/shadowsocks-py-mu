@@ -33,12 +33,12 @@ import sys
 
 try:
     import pyuv
-except:
+except BaseException:
     pass
 
 from collections import defaultdict
 
-from shadowsocks import shell
+import shell
 
 
 __all__ = ['EventLoop', 'POLL_NULL', 'POLL_IN', 'POLL_OUT', 'POLL_ERR',
@@ -322,7 +322,7 @@ if sys.platform == "win32":
         import pyuv
         EventLoop = UvEventLoop
         logging.info('[Win32] Using EventLoop as UvEventLoop')
-    except:
+    except BaseException:
         logging.warning(
             '[Win32] Using EventLoop as PyEventLoop. try install pyuv https://pypi.python.org/pypi/pyuv')
 

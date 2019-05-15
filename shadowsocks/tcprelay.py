@@ -28,8 +28,11 @@ import logging
 import traceback
 import random
 
-from shadowsocks import cryptor, eventloop, shell, common
-from shadowsocks.common import parse_header, onetimeauth_verify, \
+import cryptor
+import eventloop
+import shell
+import common
+from common import parse_header, onetimeauth_verify, \
     onetimeauth_gen, ONETIMEAUTH_BYTES, ONETIMEAUTH_CHUNK_BYTES, \
     ONETIMEAUTH_CHUNK_DATA_LEN, ADDRTYPE_AUTH
 
@@ -171,9 +174,9 @@ class TCPRelayHandler(object):
     def _get_a_server(self):
         server = self._config['server']
         server_port = self._config['server_port']
-        if type(server_port) == list:
+        if isinstance(server_port, list):
             server_port = random.choice(server_port)
-        if type(server) == list:
+        if isinstance(server, list):
             server = random.choice(server)
         logging.debug('chosen server: %s:%d', server, server_port)
         return server, server_port
@@ -390,8 +393,11 @@ class TCPRelayHandler(object):
         af, socktype, proto, canonname, sa = addrs[0]
         if self._forbidden_iplist:
             if common.to_str(sa[0]) in self._forbidden_iplist:
-                raise Exception('U[%d] IP %s is in forbidden list, rejected' %
-                                (self._config['server_port'], common.to_str(sa[0])))
+                raise Exception(
+                    'U[%d] IP %s is in forbidden list, rejected' %
+                    (self._config['server_port'],
+                     common.to_str(
+                        sa[0])))
         remote_sock = socket.socket(af, socktype, proto)
         self._remote_sock = remote_sock
         self._fd_to_handlers[remote_sock.fileno()] = self
@@ -592,13 +598,21 @@ class TCPRelayHandler(object):
     def _on_local_error(self):
         logging.debug('got local error')
         if self._local_sock:
-            logging.error('U[%d] %s' % (self._config['server_port'], eventloop.get_sock_error(self._local_sock)))
+            logging.error(
+                'U[%d] %s' %
+                (self._config['server_port'],
+                 eventloop.get_sock_error(
+                    self._local_sock)))
         self.destroy()
 
     def _on_remote_error(self):
         logging.debug('got remote error')
         if self._remote_sock:
-            logging.error('U[%d] %s' % (self._config['server_port'], eventloop.get_sock_error(self._remote_sock)))
+            logging.error(
+                'U[%d] %s' %
+                (self._config['server_port'],
+                 eventloop.get_sock_error(
+                    self._remote_sock)))
         self.destroy()
 
     @shell.exception_handle(self_=True, destroy=True)
@@ -639,7 +653,9 @@ class TCPRelayHandler(object):
             logging.error('U[%d] %s when handling connection from %s:%d' %
                           (self._config['server_port'], e, addr, port))
         else:
-            logging.error('U[%d] Unknown TCP error occurred' % self._config['server_port'])
+            logging.error(
+                'U[%d] Unknown TCP error occurred' %
+                self._config['server_port'])
 
     def destroy(self):
         # destroy the handler and release any resources
@@ -773,7 +789,7 @@ class TCPRelay(object):
                     else:
                         if handler.remote_address:
                             logging.warning('timed out: %s:%d' %
-                                         handler.remote_address)
+                                            handler.remote_address)
                         else:
                             logging.warning('timed out')
                         handler.destroy()

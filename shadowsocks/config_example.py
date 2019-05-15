@@ -11,7 +11,8 @@ CONFIG_VERSION = 1
 # ---------------------------
 # If API is enabled, database will no longer be used
 # The known web panel that is compatible with the API is SS-Panel V3
-# Be careful and check whether your web panel supports this API BEFORE you enable this feature
+# Be careful and check whether your web panel supports this API BEFORE you
+# enable this feature
 API_ENABLED = False
 # Time interval between 2 pulls from the database or API
 CHECKTIME = 30
@@ -51,19 +52,22 @@ MANAGER_PORT = 65000
 # if you want to bind only all of ipv4 please use '0.0.0.0'
 # if you want to bind a specific IP you may use something like '4.4.4.4'
 SS_BIND_IP = '::'
-# This default method will be replaced by database/api query result if applicable when SS_CUSTOM_METHOD is enabled
+# This default method will be replaced by database/api query result if
+# applicable when SS_CUSTOM_METHOD is enabled
 SS_METHOD = 'chacha20-ietf-poly1305'
 SS_CUSTOM_METHOD = True
 # Enforce the use of AEAD ciphers
 # When enabled, all requests of creating server with a non-AEAD cipher will be omitted
-# For more information, please refer to http://www.shadowsocks.org/en/spec/AEAD-Ciphers.html
+# For more information, please refer to
+# http://www.shadowsocks.org/en/spec/AEAD-Ciphers.html
 SS_ENFORCE_AEAD = False
 # Skip listening these ports
 SS_SKIP_PORTS = [80]
 # TCP Fastopen (Some OS may not support this, Eg.: Windows)
 SS_FASTOPEN = False
 # Shadowsocks socket timeout
-# It should not be too small as some protocol has keep-alive packet of long time, Eg.: BT
+# It should not be too small as some protocol has keep-alive packet of
+# long time, Eg.: BT
 SS_TIMEOUT = 310
 
 
@@ -86,7 +90,8 @@ SS_FORBIDDEN_IP = []
 
 # Debugging and Logging Settings
 # --------------------------
-# If SS_VERBOSE is true, traceback will be printed to STDIO when an exception is thrown
+# If SS_VERBOSE is true, traceback will be printed to STDIO when an
+# exception is thrown
 SS_VERBOSE = False
 LOG_ENABLE = True
 # Available Log Level: logging.NOTSET|DEBUG|INFO|WARNING|ERROR|CRITICAL

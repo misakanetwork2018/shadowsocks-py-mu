@@ -20,9 +20,9 @@ from __future__ import absolute_import, division, print_function, \
 from ctypes import c_char_p, c_int, c_long, byref,\
     create_string_buffer, c_void_p
 
-from shadowsocks import common
-from shadowsocks.crypto import util
-from shadowsocks.crypto.aead import AeadCryptoBase, EVP_CTRL_AEAD_SET_IVLEN, \
+import common
+from crypto import util
+from crypto.aead import AeadCryptoBase, EVP_CTRL_AEAD_SET_IVLEN, \
     EVP_CTRL_AEAD_GET_TAG, EVP_CTRL_AEAD_SET_TAG
 
 __all__ = ['ciphers']
@@ -91,6 +91,7 @@ class OpenSSLCryptoBase(object):
     """
     OpenSSL crypto base class
     """
+
     def __init__(self, cipher_name, crypto_path=None):
         self._ctx = None
         self._cipher = None
@@ -146,6 +147,7 @@ class OpenSSLAeadCrypto(OpenSSLCryptoBase, AeadCryptoBase):
     """
     Implement OpenSSL Aead mode: gcm, ocb
     """
+
     def __init__(self, cipher_name, key, iv, op, crypto_path=None):
         OpenSSLCryptoBase.__init__(self, cipher_name, crypto_path)
         AeadCryptoBase.__init__(self, cipher_name, key, iv, op, crypto_path)
@@ -282,6 +284,7 @@ class OpenSSLStreamCrypto(OpenSSLCryptoBase):
     """
     Crypto for stream modes: cfb, ofb, ctr
     """
+
     def __init__(self, cipher_name, key, iv, op, crypto_path=None):
         OpenSSLCryptoBase.__init__(self, cipher_name, crypto_path)
         key_ptr = c_char_p(key)
