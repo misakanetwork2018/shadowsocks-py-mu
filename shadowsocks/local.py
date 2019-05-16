@@ -47,6 +47,7 @@ def main():
                  (config['local_address'], config['local_port']))
 
     dns_resolver = asyncdns.DNSResolver()
+    config.update({'firewall_ports': None})
     tcp_server = tcprelay.TCPRelay(config, dns_resolver, True)
     udp_server = udprelay.UDPRelay(config, dns_resolver, True)
     loop = eventloop.EventLoop()
