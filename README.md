@@ -4,7 +4,9 @@ This is a multi-user version of shadowsocks-python. Requires a mysql database or
 
 Requirement
 -----------
-1. Python >= 2.5 (python=2.5 need to install extra library: `pip install simplejson`)
+1. Python >= 2.5, with additional library required if:
+   - python=2.5 need to install extra library: `pip install simplejson`
+   - python<3.4 **AND** OS=Windows need to install extra library: `pip install win-inet-pton`
 2. MySQL >= 5 (if using database)
 3. A Panel with [MU API](https://github.com/fsgmhoward/shadowsocks-py-mu/wiki/MultiUser-(MU)-API-Reference), such as [SS-Panel V3](https://github.com/orvice/ss-panel). (if using MU API)
 

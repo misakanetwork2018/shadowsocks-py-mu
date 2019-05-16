@@ -197,25 +197,20 @@ class UDPRelay(object):
 
         if self._config['firewall_ports'] and self._config['server_port'] not in self._config['firewall_trusted']:
             # Firewall enabled
-            if self._config['firewall_mode'] == 'blacklist' and dest_port in self._config['firewall_ports']:
-                firewall_blocked = True
-            elif self._config['firewall_mode'] == 'whitelist' and dest_port not in self._config['firewall_ports']:
-                firewall_blocked = True
-            else:
-                firewall_blocked = False
-        else:
-            firewall_blocked = False
-        if firewall_blocked:
-            logging.warning('U[%d] UDP PORT BANNED: RP[%d] A[%s-->%s]' % (
-                self._config['server_port'], dest_port,
-                client_address, common.to_str(dest_addr)
-            ))
-            return
-        else:
-            logging.info('U[%d] UDP CONN: RP[%d] A[%s-->%s]' % (
-                self._config['server_port'], dest_port,
-                client_address, common.to_str(dest_addr)
-            ))
+            if (self._config['firewall_mode'] == 'blacklist') == \
+                    (dest_port in self._config['firewall_ports']):
+                # Remote port blocked by firewall, end this connection
+                logging.warning('U[%d] UDP PORT BANNED: RP[%d] A[%s-->%s]' % (
+                    self._config['server_port'], dest_port,
+                    client_address, common.to_str(dest_addr)
+                ))
+                return
+
+        logging.info('U[%d] UDP CONN: RP[%d] A[%s-->%s]' % (
+            self._config['server_port'], dest_port,
+            client_address, common.to_str(dest_addr)
+        ))
+
         if self._is_local:
             server_addr, server_port = self._get_a_server()
         else:

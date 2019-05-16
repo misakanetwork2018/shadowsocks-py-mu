@@ -27,14 +27,14 @@ import struct
 import logging
 import traceback
 import random
-
 import cryptor
 import eventloop
 import shell
 import common
-from common import parse_header, onetimeauth_verify, \
-    onetimeauth_gen, ONETIMEAUTH_BYTES, ONETIMEAUTH_CHUNK_BYTES, \
-    ONETIMEAUTH_CHUNK_DATA_LEN, ADDRTYPE_AUTH
+from common import parse_header
+if sys.platform == 'win32':
+    # win_inet_pton injects inet_pton method into socket lib for Windows Py < 3.4
+    import win_inet_pton
 
 # we clear at most TIMEOUTS_CLEAN_SIZE timeouts each time
 TIMEOUTS_CLEAN_SIZE = 512
@@ -315,7 +315,6 @@ class TCPRelayHandler(object):
                         header = b'\x05\x00\x00\x04'
                     else:
                         header = b'\x05\x00\x00\x01'
-                    # TODO: inet_pton is added for windows in Py 3.4
                     addr_to_send = socket.inet_pton(self._local_sock.family,
                                                     addr)
                     port_to_send = struct.pack('>H', port)
@@ -334,30 +333,27 @@ class TCPRelayHandler(object):
                     return
             header_result = parse_header(data)
             if header_result is None:
-                raise Exception('TCP Can not parse header')
+                raise Exception(
+                    'U[%d] TCP Can not parse header' %
+                    self._config['server_port'])
 
             addrtype, remote_addr, remote_port, header_length = header_result
             if self._config['firewall_ports'] and self._config['server_port'] not in self._config['firewall_trusted']:
                 # Firewall enabled
-                if self._config['firewall_mode'] == 'blacklist' and remote_port in self._config['firewall_ports']:
-                    firewall_blocked = True
-                elif self._config['firewall_mode'] == 'whitelist' and remote_port not in self._config['firewall_ports']:
-                    firewall_blocked = True
-                else:
-                    firewall_blocked = False
-            else:
-                firewall_blocked = False
-            if firewall_blocked:
-                logging.warning('U[%d] TCP PORT BANNED: RP[%d] A[%s-->%s]' % (
-                    self._config['server_port'], remote_port,
-                    addr, common.to_str(remote_addr)
-                ))
-                return
-            else:
-                logging.info('U[%d] TCP CONN: RP[%d] A[%s-->%s]' % (
-                    self._config['server_port'], remote_port,
-                    addr, common.to_str(remote_addr)
-                ))
+                if (self._config['firewall_mode'] == 'blacklist') == \
+                        (remote_port in self._config['firewall_ports']):
+                    # Remote port blocked by firewall, end this connection
+                    logging.warning('U[%d] TCP PORT BANNED: RP[%d] A[%s-->%s]' % (
+                        self._config['server_port'], remote_port,
+                        addr, common.to_str(remote_addr)
+                    ))
+                    return
+
+            logging.info('U[%d] TCP CONN: RP[%d] A[%s-->%s]' % (
+                self._config['server_port'], remote_port,
+                addr, common.to_str(remote_addr)
+            ))
+
             self._remote_address = (common.to_str(remote_addr), remote_port)
             # pause reading
             self._update_stream(STREAM_UP, WAIT_STATUS_WRITING)
