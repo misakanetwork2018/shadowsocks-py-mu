@@ -87,6 +87,8 @@ class UDPRelay(object):
 
     def __init__(self, config, dns_resolver, is_local, stat_callback=None):
         self._config = config
+        if 'relay_info' not in self._config:
+            self._config['relay_info'] = None
         if is_local:
             self._listen_addr = config['local_address']
             self._listen_port = config['local_port']
@@ -114,6 +116,7 @@ class UDPRelay(object):
         self._eventloop = None
         self._closed = False
         self._sockets = set()
+        # TODO: Forbidden IP for multi-user mode
         self._forbidden_iplist = config.get('forbidden_ip')
         self._crypto_path = config['crypto_path']
 
@@ -153,13 +156,12 @@ class UDPRelay(object):
         server = self._server_socket
         data, r_addr = server.recvfrom(BUF_SIZE)
         client_address = r_addr[0]
-        key = None
-        iv = None
         if not data:
             logging.debug('U[%d] UDP handle_server: data is empty' %
                           self._config['server_port'])
         if self._stat_callback:
             self._stat_callback(self._listen_port, len(data))
+
         if self._is_local:
             if self._is_tunnel:
                 # add ss header to data
@@ -177,6 +179,7 @@ class UDPRelay(object):
         else:
             # decrypt data
             try:
+                original_data = data
                 data, key, iv = cryptor.decrypt_all(self._password,
                                                     self._method,
                                                     data)
@@ -190,8 +193,12 @@ class UDPRelay(object):
                     'U[%d] UDP handle_server: data is empty after decrypt' %
                     self._config['server_port'])
                 return
+
         header_result = parse_header(data)
         if header_result is None:
+            logging.debug(
+                'U[%d] UDP handle_server: header is invalid' %
+                self._config['server_port'])
             return
         addrtype, dest_addr, dest_port, header_length = header_result
 
@@ -214,7 +221,12 @@ class UDPRelay(object):
         if self._is_local:
             server_addr, server_port = self._get_a_server()
         else:
-            server_addr, server_port = dest_addr, dest_port
+            if self._config['relay_info']:
+                server_addr, server_port = self._config['relay_info']['address'], self._config['relay_info']['port']
+            else:
+                server_addr, server_port = dest_addr, dest_port
+
+        # Problem of DNS caching without periodical cleaning - what if server IP changes?
         addrs = self._dns_cache.get(server_addr, None)
         if addrs is None:
             addrs = socket.getaddrinfo(server_addr, server_port, 0,
@@ -255,7 +267,10 @@ class UDPRelay(object):
             if not data:
                 return
         else:
-            data = data[header_length:]
+            if self._config['relay_info']:
+                data = original_data
+            else:
+                data = data[header_length:]
         if not data:
             return
         try:
@@ -282,7 +297,7 @@ class UDPRelay(object):
             return
         if self._stat_callback:
             self._stat_callback(self._listen_port, len(data))
-        if not self._is_local:
+        if not self._is_local and not self._config['relay_info']:
             addrlen = len(r_addr[0])
             if addrlen > 255:
                 # drop
@@ -297,7 +312,8 @@ class UDPRelay(object):
                 return
             if not response:
                 return
-        else:
+        elif self._is_local:
+            # Only decrypt data if running ss-local.
             try:
                 data, key, iv = cryptor.decrypt_all(self._password,
                                                     self._method, data,
