@@ -33,7 +33,8 @@ import shell
 import common
 from common import parse_header
 if sys.platform == 'win32':
-    # win_inet_pton injects inet_pton method into socket lib for Windows Py < 3.4
+    # win_inet_pton injects inet_pton method into socket lib for
+    # Windows Py < 3.4
     import win_inet_pton
 
 # we clear at most TIMEOUTS_CLEAN_SIZE timeouts each time
@@ -379,20 +380,26 @@ class TCPRelayHandler(object):
             if self._config['relay_info']:
                 relay_addr = self._config['relay_info']['address']
                 relay_port = self._config['relay_info']['port']
-                logging.info('U[%d] TCP CONN: WITH RELAY[%s:%d] RP[%d] A[%s-->%s]' % (
-                    self._config['server_port'],
-                    relay_addr, relay_port, remote_port,
-                    addr, common.to_str(remote_addr),
-
-                ))
-                # It is in relay mode - remote_addr is replaced with the one defined in relay_info
+                logging.info(
+                    'U[%d] TCP CONN: WITH RELAY[%s:%d] A[%s-->%s:%d]' % (
+                        self._config['server_port'], relay_addr, relay_port,
+                        addr, common.to_str(remote_addr), remote_port
+                    ))
+                # It is in relay mode - remote_addr is replaced with the one
+                # defined in relay_info
                 remote_addr = relay_addr
                 remote_port = relay_port
             else:
-                logging.info('U[%d] TCP CONN: RP[%d] A[%s-->%s]' % (
-                    self._config['server_port'], remote_port,
-                    addr, common.to_str(remote_addr)
-                ))
+                if self._is_local:
+                    logging.info('U[%d] UDP CONN: DEST[%s:%d]' % (
+                        self._config['server_port'],
+                        common.to_str(remote_addr), remote_port
+                    ))
+                else:
+                    logging.info('U[%d] TCP CONN: A[%s-->%s:%d]' % (
+                        self._config['server_port'], addr,
+                        common.to_str(remote_addr), remote_port
+                    ))
 
             self._remote_address = (common.to_str(remote_addr), remote_port)
             # pause reading

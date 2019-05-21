@@ -122,8 +122,9 @@ class Manager(object):
         logging.info("Server Added:   P[%d], M[%s], E[%s]" %
                      (port, config['method'], config['email']))
         if config['relay_info']:
-            logging.info('Server P[%d] will be relayed to [%s:%d]' %
-                         (port, config['relay_info']['address'], config['relay_info']['port']))
+            logging.info(
+                'Server P[%d] will be relayed to [%s:%d]' %
+                (port, config['relay_info']['address'], config['relay_info']['port']))
 
     def remove_port(self, config):
         port = int(config['server_port'])
@@ -145,8 +146,9 @@ class Manager(object):
             # Server is now running
             self._send_control_data(
                 b'{"stat":"ok", "password":"%s", "method":"%s", "relay_info": "%s"}' %
-                (servers[0]._config['password'], servers[0]._config['method'],
-                 servers[0]._config['relay_info']))
+                (servers[0]._config['password'],
+                 servers[0]._config['method'],
+                    servers[0]._config['relay_info']))
         else:
             # Server is not running
             self._send_control_data(b'{"stat":"ko"}')

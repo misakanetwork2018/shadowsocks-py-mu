@@ -180,7 +180,7 @@ class DbTransfer(object):
     def pull_api_relay_rules():
         # Relay function is not supported by the vanilla SS-Panel
         DbTransfer.verbose_print('api relay rules download - start')
-        response = urlopen(config.API_URL + '/nodes/' + config.API_NODE_ID +
+        response = urlopen(config.API_URL + '/node/' + config.API_NODE_ID +
                            '/' + 'rules?key=' + config.API_PASS)
         # Data in format:
         # {'8388': {'address': 'somenode.example.com', 'port': '8388'}}

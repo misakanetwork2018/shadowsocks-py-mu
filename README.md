@@ -74,9 +74,7 @@ When data connection being established/blocked
 
 `U[XXX]` client port (assigned by database)
 
-`RP[XXX]` remote port (the port the client wants to connect)
-
-`A[XXX-->XXX]` from the client address to the remote address
+`A[XXX-->XXXX:XXX]` from the client address to the remote address:port
 
 Database user table column
 --------------------------

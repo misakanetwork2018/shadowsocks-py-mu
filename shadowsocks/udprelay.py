@@ -213,20 +213,29 @@ class UDPRelay(object):
                 ))
                 return
 
-        logging.info('U[%d] UDP CONN: RP[%d] A[%s-->%s]' % (
-            self._config['server_port'], dest_port,
-            client_address, common.to_str(dest_addr)
-        ))
-
-        if self._is_local:
-            server_addr, server_port = self._get_a_server()
+        if self._config['relay_info']:
+            server_addr, server_port = self._config['relay_info']['address'], self._config['relay_info']['port']
+            logging.info('U[%d] UDP CONN: WITH RELAY[%s:%d] A[%s-->%s:%d]' % (
+                self._config['server_port'],
+                server_addr, server_port, client_address,
+                common.to_str(dest_addr), dest_port
+            ))
         else:
-            if self._config['relay_info']:
-                server_addr, server_port = self._config['relay_info']['address'], self._config['relay_info']['port']
+            if self._is_local:
+                logging.info('U[%d] UDP CONN: DEST[%s:%d]' % (
+                    self._config['server_port'],
+                    common.to_str(dest_addr), dest_port
+                ))
+                server_addr, server_port = self._get_a_server()
             else:
+                logging.info('U[%d] UDP CONN: A[%s-->%s:%d]' % (
+                    self._config['server_port'], client_address,
+                    common.to_str(dest_addr), dest_port
+                ))
                 server_addr, server_port = dest_addr, dest_port
 
-        # Problem of DNS caching without periodical cleaning - what if server IP changes?
+        # Problem of DNS caching without periodical cleaning - what if server
+        # IP changes?
         addrs = self._dns_cache.get(server_addr, None)
         if addrs is None:
             addrs = socket.getaddrinfo(server_addr, server_port, 0,
