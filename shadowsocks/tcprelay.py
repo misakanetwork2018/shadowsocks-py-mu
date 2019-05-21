@@ -266,12 +266,12 @@ class TCPRelayHandler(object):
         return True
 
     def _handle_stage_connecting(self, data, original_data):
-        if not self._is_local:
-            self._data_to_write_to_remote.append(data)
-            return
-        elif self._config['relay_info']:
+        if self._config['relay_info']:
             # If in relay mode, send encrypted data (i.e. original data)
             self._data_to_write_to_remote.append(original_data)
+            return
+        elif not self._is_local:
+            self._data_to_write_to_remote.append(data)
             return
         data = self._cryptor.encrypt(data)
         self._data_to_write_to_remote.append(data)
@@ -391,7 +391,7 @@ class TCPRelayHandler(object):
                 remote_port = relay_port
             else:
                 if self._is_local:
-                    logging.info('U[%d] UDP CONN: DEST[%s:%d]' % (
+                    logging.info('U[%d] TCP CONN: DEST[%s:%d]' % (
                         self._config['server_port'],
                         common.to_str(remote_addr), remote_port
                     ))
@@ -584,7 +584,9 @@ class TCPRelayHandler(object):
             self.destroy()
             return
         self._update_activity(len(data))
-        if not is_local:
+        if is_local:
+            original_data = None
+        else:
             if self._config['relay_info']:
                 original_data = data
             else:
@@ -610,7 +612,7 @@ class TCPRelayHandler(object):
     def _on_remote_read(self):
         # handle all remote read events
         data = None
-        if self._is_local:
+        if self._is_local or self._config['relay_info']:
             buf_size = UP_STREAM_BUF_SIZE
         else:
             buf_size = DOWN_STREAM_BUF_SIZE
