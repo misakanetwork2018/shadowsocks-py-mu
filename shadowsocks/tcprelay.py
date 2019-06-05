@@ -412,7 +412,7 @@ class TCPRelayHandler(object):
                                     self._local_sock)
                 data_to_send = self._cryptor.encrypt(data)
                 self._data_to_write_to_remote.append(data_to_send)
-                # notice here may go into _handle_dns_resolved directly
+                # note that here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(self._chosen_server[0],
                                            self._handle_dns_resolved)
             else:
@@ -420,7 +420,7 @@ class TCPRelayHandler(object):
                     self._data_to_write_to_remote.append(original_data)
                 elif len(data) > header_length:
                     self._data_to_write_to_remote.append(data[header_length:])
-                # notice here may go into _handle_dns_resolved directly
+                # note that here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(remote_addr,
                                            self._handle_dns_resolved)
         except Exception as e:
@@ -452,8 +452,7 @@ class TCPRelayHandler(object):
     @shell.exception_handle(self_=True)
     def _handle_dns_resolved(self, result, error):
         if error:
-            # TODO: Unresolved ref?
-            addr, port = self._client_address[0], self._client_address[1]
+            addr, port = self._local_sock.getpeername()[:2]
             logging.error('%s when handling connection from %s:%d' %
                           (error, addr, port))
             self.destroy()
@@ -494,9 +493,6 @@ class TCPRelayHandler(object):
                            self._server)
             self._update_stream(STREAM_UP, WAIT_STATUS_READWRITING)
             self._update_stream(STREAM_DOWN, WAIT_STATUS_READING)
-
-    def _write_to_sock_remote(self, data):
-        self._write_to_sock(data, self._remote_sock)
 
     def _handle_stage_stream(self, data, original_data):
         if self._is_local:
@@ -592,15 +588,15 @@ class TCPRelayHandler(object):
             else:
                 original_data = None
             data = self._cryptor.decrypt(data)
-            if not data:
+            if not data and not self._config['relay_info']:
+                # Empty data will also be relayed to the remote server
                 return
         if self._stage == STAGE_STREAM:
             self._handle_stage_stream(data, original_data)
-            return
         elif is_local and self._stage == STAGE_INIT:
             # jump over socks5 init
             if self._is_tunnel:
-                self._handle_stage_addr(data, original_data)
+                self._handle_stage_addr(data, None)
             else:
                 self._handle_stage_init(data)
         elif self._stage == STAGE_CONNECTING:
