@@ -76,6 +76,21 @@ When data connection being established/blocked
 
 `A[XXX-->XXXX:XXX]` from the client address to the remote address:port
 
+Relaying traffic to remote servers
+----------------------------------
+Shadowsocks-py-mu supports relaying traffic to remote servers. It will:
+
+1. Receive a data packet and count the length of data
+2. Decrypt it to obtain final target address and log it down if logging is enabled
+3. Send the original data packet (before decryption) to the next shadowsocks server
+
+Compared with other methods to relay traffic such as iptables, using ss-py-mu to
+relay traffic can enable you to log the original IP of the user and count the traffic
+used by him/her, if necessary.
+
+There are 3 modes of relaying traffic, which are explained in details in the example
+config file.
+
 Database user table column
 --------------------------
 `passwd` server pass
