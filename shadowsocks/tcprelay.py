@@ -33,7 +33,8 @@ import shell
 import common
 from common import parse_header
 if sys.platform == 'win32':
-    # win_inet_pton injects inet_pton method into socket lib for Windows Py < 3.4
+    # win_inet_pton injects inet_pton method into socket lib for
+    # Windows Py < 3.4
     import win_inet_pton
 
 # we clear at most TIMEOUTS_CLEAN_SIZE timeouts each time
@@ -132,6 +133,8 @@ class TCPRelayHandler(object):
         self._local_sock = local_sock
         self._remote_sock = None
         self._config = config
+        if 'relay_info' not in self._config:
+            self._config['relay_info'] = None
         self._dns_resolver = dns_resolver
         self.tunnel_remote = config.get('tunnel_remote', "8.8.8.8")
         self.tunnel_remote_port = config.get('tunnel_remote_port', 53)
@@ -262,8 +265,12 @@ class TCPRelayHandler(object):
                 logging.error('write_all_to_sock:unknown socket')
         return True
 
-    def _handle_stage_connecting(self, data):
-        if not self._is_local:
+    def _handle_stage_connecting(self, data, original_data):
+        if self._config['relay_info']:
+            # If in relay mode, send encrypted data (i.e. original data)
+            self._data_to_write_to_remote.append(original_data)
+            return
+        elif not self._is_local:
             self._data_to_write_to_remote.append(data)
             return
         data = self._cryptor.encrypt(data)
@@ -303,7 +310,24 @@ class TCPRelayHandler(object):
                     self.destroy()
 
     @shell.exception_handle(self_=True, destroy=True, conn_err=True)
-    def _handle_stage_addr(self, data):
+    def _handle_stage_addr(self, data, original_data):
+        # Socks ver. 5 connection request from client:
+        # +--------------+-----+-----+-----+------+----------+----------+
+        # | name         | VER | CMD | RSV | ATYP | DST.ADDR | DST.PORT |
+        # +--------------+-----+-----+-----+------+----------+----------+
+        # | no. of bytes | 1   | 1   | 1   | 1    | VARIABLE | 2        |
+        # +--------------+-----+-----+-----+------+----------+----------+
+        #
+        # VER: Always 0x05 for socks 5
+        # CMD: 0x01-TCP stream, 0x02-TCP port binding, 0x03-UDP associate
+        # RSV: Always 0x00
+        # ATYP: 'Type of destination address'
+        #       0x01-IPv4, 0x03-domain name, 0x04-IPv6
+        # DST.ADDR: 4 bytes for IPv4 address
+        #           1 byte of name length followed by 1–255 bytes the domain name
+        #           16 bytes for IPv6 address
+        # DST.PORT: 'Destination port number', unsigned big-endian integer
+        #
         try:
             addr, port = self._local_sock.getpeername()[:2]
             if self._is_local:
@@ -312,6 +336,9 @@ class TCPRelayHandler(object):
                     logging.debug('U[%d] UDP associate' %
                                   self._config['server_port'])
                     if self._local_sock.family == socket.AF_INET6:
+                        # Second byte is status, 0x00 for means 'request granted'
+                        # Third byte is RSV (always 0x00)
+                        # Fourth byte is ATYP, see above for reference
                         header = b'\x05\x00\x00\x04'
                     else:
                         header = b'\x05\x00\x00\x01'
@@ -331,6 +358,7 @@ class TCPRelayHandler(object):
                                   self._config['server_port'], cmd)
                     self.destroy()
                     return
+
             header_result = parse_header(data)
             if header_result is None:
                 raise Exception(
@@ -349,10 +377,29 @@ class TCPRelayHandler(object):
                     ))
                     return
 
-            logging.info('U[%d] TCP CONN: RP[%d] A[%s-->%s]' % (
-                self._config['server_port'], remote_port,
-                addr, common.to_str(remote_addr)
-            ))
+            if self._config['relay_info']:
+                relay_addr = self._config['relay_info']['address']
+                relay_port = self._config['relay_info']['port']
+                logging.info(
+                    'U[%d] TCP CONN: WITH RELAY[%s:%d] A[%s-->%s:%d]' % (
+                        self._config['server_port'], relay_addr, relay_port,
+                        addr, common.to_str(remote_addr), remote_port
+                    ))
+                # It is in relay mode - remote_addr is replaced with the one
+                # defined in relay_info
+                remote_addr = relay_addr
+                remote_port = relay_port
+            else:
+                if self._is_local:
+                    logging.info('U[%d] TCP CONN: DEST[%s:%d]' % (
+                        self._config['server_port'],
+                        common.to_str(remote_addr), remote_port
+                    ))
+                else:
+                    logging.info('U[%d] TCP CONN: A[%s-->%s:%d]' % (
+                        self._config['server_port'], addr,
+                        common.to_str(remote_addr), remote_port
+                    ))
 
             self._remote_address = (common.to_str(remote_addr), remote_port)
             # pause reading
@@ -363,16 +410,17 @@ class TCPRelayHandler(object):
                 self._write_to_sock((b'\x05\x00\x00\x01'
                                      b'\x00\x00\x00\x00\x10\x10'),
                                     self._local_sock)
-                key = self._cryptor.cipher_iv + self._cryptor.key
                 data_to_send = self._cryptor.encrypt(data)
                 self._data_to_write_to_remote.append(data_to_send)
-                # notice here may go into _handle_dns_resolved directly
+                # note that here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(self._chosen_server[0],
                                            self._handle_dns_resolved)
             else:
-                if len(data) > header_length:
+                if self._config['relay_info']:
+                    self._data_to_write_to_remote.append(original_data)
+                elif len(data) > header_length:
                     self._data_to_write_to_remote.append(data[header_length:])
-                # notice here may go into _handle_dns_resolved directly
+                # note that here may go into _handle_dns_resolved directly
                 self._dns_resolver.resolve(remote_addr,
                                            self._handle_dns_resolved)
         except Exception as e:
@@ -404,7 +452,7 @@ class TCPRelayHandler(object):
     @shell.exception_handle(self_=True)
     def _handle_dns_resolved(self, result, error):
         if error:
-            addr, port = self._client_address[0], self._client_address[1]
+            addr, port = self._local_sock.getpeername()[:2]
             logging.error('%s when handling connection from %s:%d' %
                           (error, addr, port))
             self.destroy()
@@ -416,7 +464,9 @@ class TCPRelayHandler(object):
         ip = result[1]
         self._stage = STAGE_CONNECTING
         remote_addr = ip
-        if self._is_local:
+        if self._config['relay_info']:
+            remote_port = self._config['relay_info']['port']
+        elif self._is_local:
             remote_port = self._chosen_server[1]
         else:
             remote_port = self._remote_address[1]
@@ -424,7 +474,6 @@ class TCPRelayHandler(object):
         if self._is_local and self._config['fast_open']:
             # for fastopen:
             # wait for more data arrive and send them in one SYN
-            self._stage = STAGE_CONNECTING
             # we don't have to wait for remote since it's not
             # created
             self._update_stream(STREAM_UP, WAIT_STATUS_READING)
@@ -442,32 +491,45 @@ class TCPRelayHandler(object):
             self._loop.add(remote_sock,
                            eventloop.POLL_ERR | eventloop.POLL_OUT,
                            self._server)
-            self._stage = STAGE_CONNECTING
             self._update_stream(STREAM_UP, WAIT_STATUS_READWRITING)
             self._update_stream(STREAM_DOWN, WAIT_STATUS_READING)
 
-    def _write_to_sock_remote(self, data):
-        self._write_to_sock(data, self._remote_sock)
-
-    def _handle_stage_stream(self, data):
+    def _handle_stage_stream(self, data, original_data):
         if self._is_local:
             data = self._cryptor.encrypt(data)
-            self._write_to_sock(data, self._remote_sock)
+        if self._config['relay_info']:
+            self._write_to_sock(original_data, self._remote_sock)
         else:
             self._write_to_sock(data, self._remote_sock)
-        return
 
     def _check_auth_method(self, data):
-        # VER, NMETHODS, and at least 1 METHODS
+        # Greeting from client (socks5 method selection header):
+        # +-----------------+-----+----------+---------+
+        # | name            | VER | NMETHODS | METHODS |
+        # +-----------------+-----+----------+---------+
+        # | number of bytes | 1   | 1        | 1-255   |
+        # +-----------------+-----+----------+---------+
+        #
+        # NMETHODS: 'number of methods supported by client'
+        #
+        # Method list:
+        # X’00’ NO AUTHENTICATION REQUIRED
+        # X’01’ GSSAPI
+        # X’02’ USERNAME/PASSWORD
+        # X’03’ to X’7F’ IANA ASSIGNED
+        # X’80’ to X’FE’ RESERVED FOR PRIVATE METHODS
+        # X’FF’ NO ACCEPTABLE METHODS
+        #
+        # Currently, only socks5 with NO_AUTH (i.e. X'00') is supported
         if len(data) < 3:
             logging.warning('method selection header too short')
             raise BadSocksHeader
         socks_version = common.ord(data[0])
-        nmethods = common.ord(data[1])
         if socks_version != 5:
             logging.warning('unsupported SOCKS protocol version ' +
                             str(socks_version))
             raise BadSocksHeader
+        nmethods = common.ord(data[1])
         if nmethods < 1 or len(data) != nmethods + 2:
             logging.warning('NMETHODS and number of METHODS mismatch')
             raise BadSocksHeader
@@ -488,10 +550,12 @@ class TCPRelayHandler(object):
             self.destroy()
             return
         except NoAcceptableMethods:
+            # Reply to client: No acceptable method, and terminate session
             self._write_to_sock(b'\x05\xff', self._local_sock)
             self.destroy()
             return
 
+        # Reply to client: Using socks version 5, with NO_AUTH as method
         self._write_to_sock(b'\x05\00', self._local_sock)
         self._stage = STAGE_ADDR
 
@@ -516,30 +580,35 @@ class TCPRelayHandler(object):
             self.destroy()
             return
         self._update_activity(len(data))
-        if not is_local:
+        if is_local:
+            original_data = None
+        else:
+            if self._config['relay_info']:
+                original_data = data
+            else:
+                original_data = None
             data = self._cryptor.decrypt(data)
-            if not data:
+            if not data and not self._config['relay_info']:
+                # Empty data will also be relayed to the remote server
                 return
         if self._stage == STAGE_STREAM:
-            self._handle_stage_stream(data)
-            return
+            self._handle_stage_stream(data, original_data)
         elif is_local and self._stage == STAGE_INIT:
             # jump over socks5 init
             if self._is_tunnel:
-                self._handle_stage_addr(data)
-                return
+                self._handle_stage_addr(data, None)
             else:
                 self._handle_stage_init(data)
         elif self._stage == STAGE_CONNECTING:
-            self._handle_stage_connecting(data)
+            self._handle_stage_connecting(data, original_data)
         elif (is_local and self._stage == STAGE_ADDR) or \
                 (not is_local and self._stage == STAGE_INIT):
-            self._handle_stage_addr(data)
+            self._handle_stage_addr(data, original_data)
 
     def _on_remote_read(self):
         # handle all remote read events
         data = None
-        if self._is_local:
+        if self._is_local or self._config['relay_info']:
             buf_size = UP_STREAM_BUF_SIZE
         else:
             buf_size = DOWN_STREAM_BUF_SIZE
@@ -561,9 +630,10 @@ class TCPRelayHandler(object):
         self._update_activity(len(data))
         if self._is_local:
             data = self._cryptor.decrypt(data)
-        else:
+        elif not self._config['relay_info']:
             data = self._cryptor.encrypt(data)
         try:
+            # Relayed data will be sent as-is
             self._write_to_sock(data, self._local_sock)
         except Exception as e:
             shell.print_exception(e)

@@ -1,10 +1,17 @@
 # !!! Please rename config_example.py as config.py BEFORE editing it !!!
 
 import logging
+
+# Constants
+RELAY_DISABLED = None
+RELAY_ONLY = 1
+RELAY_DUAL_MODES = 2
+RELAY_ALL = 3
+
 # !!! Only edit this line when you update your configuration file !!!
 # After you update, the value of CONFIG_VERSION in config.py and
 # config_example.py should be the same in order to start the server
-CONFIG_VERSION = 1
+CONFIG_VERSION = 2
 
 
 # Manyuser Interface Settings
@@ -14,6 +21,20 @@ CONFIG_VERSION = 1
 # Be careful and check whether your web panel supports this API BEFORE you
 # enable this feature
 API_ENABLED = False
+# Enable the ability of becoming a relay of data for other servers
+# Need support from the API endpoint, see TODO: WiKi Link
+# Modes:
+#     RELAY_DISABLED   - Disable relay mode
+#     RELAY_ONLY       - Only enables relay function. Users not in relay
+#                        list will not be able to use this server
+#     RELAY_DUAL_MODES - Perform as a relay server for users on the rule list,
+#                        perform as a normal shadowsocks server for the rest
+#     RELAY_ALL        - Rule list will not be fetched and traffic for all
+#                        active users will be relayed to API_RELAY_ALL_INFO
+#                        using the original port of the user
+API_RELAY_MODE = RELAY_DISABLED
+API_RELAY_ALL_TARGET = 'relay.example.com'
+
 # Time interval between 2 pulls from the database or API
 CHECKTIME = 30
 # Time interval between 2 pushes to the database or API

@@ -169,6 +169,7 @@ def add_header(address, port, data=b''):
 
 
 def parse_header(data):
+    # Data has its VER,CMD,RSV trimmed
     addrtype = ord(data[0])
     dest_addr = None
     dest_port = None

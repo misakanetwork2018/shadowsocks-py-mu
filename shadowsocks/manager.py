@@ -121,6 +121,10 @@ class Manager(object):
         self._relays[port] = (t, u)
         logging.info("Server Added:   P[%d], M[%s], E[%s]" %
                      (port, config['method'], config['email']))
+        if config['relay_info']:
+            logging.info(
+                'Server P[%d] will be relayed to [%s:%d]' %
+                (port, config['relay_info']['address'], config['relay_info']['port']))
 
     def remove_port(self, config):
         port = int(config['server_port'])
@@ -141,8 +145,10 @@ class Manager(object):
         if servers:
             # Server is now running
             self._send_control_data(
-                b'{"stat":"ok", "password":"%s", "method":"%s"}' %
-                (servers[0]._config['password'], servers[0]._config['method']))
+                b'{"stat":"ok", "password":"%s", "method":"%s", "relay_info": "%s"}' %
+                (servers[0]._config['password'],
+                 servers[0]._config['method'],
+                    servers[0]._config['relay_info']))
         else:
             # Server is not running
             self._send_control_data(b'{"stat":"ko"}')
@@ -153,6 +159,11 @@ class Manager(object):
             parsed = self._parse_command(data)
             if parsed:
                 command, config = parsed
+                if 'relay_info' not in config:
+                    config['relay_info'] = None
+                else:
+                    config['relay_info'] = eval(config['relay_info'])
+
                 a_config = self._config.copy()
                 if command == 'transfer':
                     self.handle_periodic()

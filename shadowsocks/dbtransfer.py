@@ -100,8 +100,8 @@ class DbTransfer(object):
             DbTransfer.send_command('remove: {"server_port":%d}' % row[0])
             time.sleep(0.1)
         DbTransfer.send_command(
-            'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' %
-            (row[0], row[4], row[7], row[8]))
+            'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s", "relay_info":"%s"}' %
+            (row[0], row[4], row[7], row[8], row[10]))
 
     @staticmethod
     def del_server_out_of_bound_safe(rows):
@@ -109,6 +109,7 @@ class DbTransfer(object):
             server = json.loads(DbTransfer.send_command(
                 'stat: {"server_port":%s}' % row[0]))
             if server['stat'] != 'ko':
+                # server exists and is running
                 if row[5] == 0 or row[6] == 0:
                     # stop disabled or switched-off user
                     logging.info(
@@ -129,13 +130,17 @@ class DbTransfer(object):
                         'U[%d] Server is restarting: password is changed' %
                         row[0])
                     DbTransfer.start_server(row, True)
+                elif eval(server['relay_info']) != row[10]:
+                    logging.info(
+                        'U[%d] Server is restarting: relay information has been changed' %
+                        row[0])
                 else:
                     if not config.SS_CUSTOM_METHOD:
                         row[7] = config.SS_METHOD
                     if server['method'] != row[7]:
                         # encryption method changed
                         logging.info(
-                            'U[%d] Server is restarting: encryption method is changed' %
+                            'U[%d] Server is restarting: encryption method has been changed' %
                             row[0])
                         DbTransfer.start_server(row, True)
             else:
@@ -144,9 +149,14 @@ class DbTransfer(object):
                         row[7] = config.SS_METHOD
                     DbTransfer.start_server(row)
                     if config.MANAGER_BIND_IP != '127.0.0.1':
-                        logging.info(
-                            'U[%s] Server Started with password [%s] and method [%s]' %
-                            (row[0], row[4], row[7]))
+                        if row[10]:
+                            logging.info(
+                                'U[%s] Server Started with password [%s] and method [%s], relaying to [%s]' %
+                                (row[0], row[4], row[7], row[10]['address'] + ':' + row[10]['port']))
+                        else:
+                            logging.info(
+                                'U[%s] Server Started with password [%s] and method [%s]' %
+                                (row[0], row[4], row[7]))
 
     @staticmethod
     def thread_pull():
@@ -167,10 +177,28 @@ class DbTransfer(object):
                 time.sleep(config.CHECKTIME)
 
     @staticmethod
+    def pull_api_relay_rules():
+        # Relay function is not supported by the vanilla SS-Panel
+        DbTransfer.verbose_print('api relay rules download - start')
+        response = urlopen(config.API_URL + '/node/' + config.API_NODE_ID +
+                           '/' + 'rules?key=' + config.API_PASS)
+        # Data in format:
+        # {'8388': {'address': 'somenode.example.com', 'port': '8388'}}
+        response_data = json.load(response)
+        response.close()
+        DbTransfer.verbose_print('api relay rules download - end')
+        return response_data
+
+    @staticmethod
     def pull_api_user():
-        DbTransfer.verbose_print('api download - start')
-        # Node parameter is not included for the ORIGINAL version of SS-Panel
-        # V3
+        if config.API_RELAY_MODE and config.API_RELAY_MODE != config.RELAY_ALL:
+            rules = DbTransfer.pull_api_relay_rules()
+            if config.API_RELAY_MODE == config.RELAY_ONLY and not rules:
+                logging.info('relay-only mode is on and no users on list')
+                return []
+
+        DbTransfer.verbose_print('api user table download - start')
+        # Node parameter is not included for the vanilla SS-Panel
         url = config.API_URL + '/users?key=' + \
             config.API_PASS + '&node=' + config.API_NODE_ID
         response = urlopen(url)
@@ -180,7 +208,38 @@ class DbTransfer(object):
         for user in response_data['data']:
             if user['port'] in config.SS_SKIP_PORTS:
                 DbTransfer.verbose_print('api skipped port %d' % user['port'])
+            elif user.get('switch') == 0 or user['enable'] == 0:
+                rows.append([
+                    user['port'],
+                    None, None, None, None,
+                    user.get('switch'),
+                    user['enable'],
+                    None, None, None
+                ])
             else:
+                if config.API_RELAY_MODE == config.RELAY_DISABLED:
+                    relay_info = None
+                else:
+                    # Relay mode is on, search in rules whether
+                    # this user use relay
+                    if config.API_RELAY_MODE == config.RELAY_ALL:
+                        relay_info = {
+                            'address': config.API_RELAY_ALL_TARGET,
+                            'port': user['port']
+                        }
+                    elif str(user['port']) in rules:
+                        relay_info = {
+                            'address': rules[str(user['port'])]['address'],
+                            'port': rules[str(user['port'])]['port']
+                        }
+                    else:
+                        if config.API_RELAY_MODE == config.RELAY_ONLY:
+                            # Since user is not on the list and the node is
+                            # relay-only, the user will be set disabled even when
+                            # it was enabled
+                            user['enable'] = 0
+                        relay_info = None
+
                 rows.append([
                     user['port'],
                     user['u'],
@@ -191,14 +250,15 @@ class DbTransfer(object):
                     user['enable'],
                     user['method'],
                     user['email'],
-                    user['id']
+                    user['id'],
+                    relay_info
                 ])
-        DbTransfer.verbose_print('api download - done')
+        DbTransfer.verbose_print('api user table download - done')
         return rows
 
     @staticmethod
     def pull_db_user():
-        DbTransfer.verbose_print('db download - start')
+        DbTransfer.verbose_print('db user table download - start')
         string = ''
         for index in range(len(config.SS_SKIP_PORTS)):
             port = config.SS_SKIP_PORTS[index]
@@ -224,7 +284,7 @@ class DbTransfer(object):
         # Release resources
         cur.close()
         conn.close()
-        DbTransfer.verbose_print('db download - done')
+        DbTransfer.verbose_print('db user table download - done')
         return rows
 
     @staticmethod
