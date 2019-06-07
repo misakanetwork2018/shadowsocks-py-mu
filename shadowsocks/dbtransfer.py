@@ -225,7 +225,7 @@ class DbTransfer(object):
                     if config.API_RELAY_MODE == config.RELAY_ALL:
                         relay_info = {
                             'address': config.API_RELAY_ALL_TARGET,
-                            'port': str(user['port'])
+                            'port': user['port']
                         }
                     elif str(user['port']) in rules:
                         relay_info = {
