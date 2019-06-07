@@ -191,7 +191,7 @@ class DbTransfer(object):
 
     @staticmethod
     def pull_api_user():
-        if config.API_RELAY_MODE:
+        if config.API_RELAY_MODE and config.API_RELAY_MODE != config.RELAY_ALL:
             rules = DbTransfer.pull_api_relay_rules()
             if config.API_RELAY_MODE == config.RELAY_ONLY and not rules:
                 logging.info('relay-only mode is on and no users on list')
@@ -214,7 +214,12 @@ class DbTransfer(object):
                 else:
                     # Relay mode is on, search in rules whether
                     # this user use relay
-                    if str(user['port']) in rules:
+                    if config.API_RELAY_MODE == config.RELAY_ALL:
+                        relay_info = {
+                            'address': config.API_RELAY_ALL_TARGET,
+                            'port': str(user['port'])
+                        }
+                    elif str(user['port']) in rules:
                         relay_info = {
                             'address': rules[str(user['port'])]['address'],
                             'port': rules[str(user['port'])]['port']
