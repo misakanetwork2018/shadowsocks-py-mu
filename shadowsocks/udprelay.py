@@ -341,6 +341,10 @@ class UDPRelay(object):
                 response = data[header_length:]
             else:
                 response = b'\x00\x00\x00' + data
+        else:
+            # Data received from upstream has already been encrypted, sent the
+            # received data to client as-is
+            response = data
         client_addr = self._client_fd_to_server_addr.get(sock.fileno())
         if client_addr:
             logging.debug("send udp response to %s:%d"
