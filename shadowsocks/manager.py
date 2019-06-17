@@ -85,13 +85,13 @@ class Manager(object):
         port = int(config['server_port'])
         servers = self._relays.get(port, None)
         if servers:
-            logging.error("Server Exists:  P[%d], M[%s], E[%s]" % (
-                port, config['method'], config['email']))
+            logging.error("Server Exists:  P[%d], M[%s]" % (
+                port, config['method']))
             return
         # Check if AEAD cipher is enforced
         if config['aead_enforcement'] and config['method'] not in aead_ciphers:
-            logging.warning("AEAD Cipher Enforced - Rejected Server: P[%d], M[%s], E[%s]" % (
-                port, config['method'], config['email']))
+            logging.warning("AEAD Cipher Enforced - Rejected Server: P[%d], M[%s]" % (
+                port, config['method']))
             return
         t = tcprelay.TCPRelay(config, self._dns_resolver, False,
                               self.stat_callback)
@@ -100,8 +100,8 @@ class Manager(object):
         t.add_to_loop(self._loop)
         u.add_to_loop(self._loop)
         self._relays[port] = (t, u)
-        logging.info("Server Added:   P[%d], M[%s], E[%s]" %
-                     (port, config['method'], config['email']))
+        logging.info("Server Added:   P[%d], M[%s]" %
+                     (port, config['method']))
 
     def remove_port(self, config):
         port = int(config['server_port'])
@@ -113,8 +113,8 @@ class Manager(object):
             u.close(next_tick=False)
             del self._relays[port]
         else:
-            logging.error("Svr Not Exists: P[%d], M[%s], E[%s]" % (
-                port, config['method'], config['email']))
+            logging.error("Svr Not Exists: P[%d], M[%s]" % (
+                port, config['method']))
 
     def stat_port(self, config):
         port = int(config['server_port'])
