@@ -202,9 +202,9 @@ class DbTransfer(object):
             else:
                 string = '%s AND `port`<>%d' % (string, port)
         if len(config.SS_SKIP_PORTS) > 0:
-            string = '%s AND `nid`<>%d' % (string, config.NID)
+            string = '%s AND `nid`=%d' % (string, config.NID)
         else:
-            string = ' WHERE `nid`<>%d' % config.NID
+            string = ' WHERE `nid`=%d' % config.NID
         conn = cymysql.connect(host=config.MYSQL_HOST, port=config.MYSQL_PORT, user=config.MYSQL_USER,
                                passwd=config.MYSQL_PASS, db=config.MYSQL_DB, charset='utf8')
         cur = conn.cursor()
