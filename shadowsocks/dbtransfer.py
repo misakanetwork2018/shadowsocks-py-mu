@@ -92,8 +92,8 @@ class DbTransfer(object):
             DbTransfer.send_command('remove: {"server_port":%d}' % row[0])
             time.sleep(0.1)
         DbTransfer.send_command(
-            'add: {"server_port": %d, "password":"%s", "method":"%s", "email":"%s"}' %
-            (row[0], row[4], row[7], row[8])
+            'add: {"server_port": %d, "password":"%s", "method":"%s"}' %
+            (row[0], row[4], row[7])
         )
 
     @staticmethod
