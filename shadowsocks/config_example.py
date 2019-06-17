@@ -27,6 +27,7 @@ MYSQL_USER = 'root'
 MYSQL_PASS = 'root'
 MYSQL_DB = 'shadowsocks'
 MYSQL_USER_TABLE = 'user'
+NID = 0
 
 # Shadowsocks MultiUser API Settings
 API_URL = 'http://domain/mu'
