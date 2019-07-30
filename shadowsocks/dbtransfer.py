@@ -248,9 +248,9 @@ class DbTransfer(object):
                 if str(result[0]) == port:
                     user = result[9]
                     break
-            if not user:
+            if user is None:
                 logging.warning('U[%s] User Not Found', port)
-                server = json.loads(DbTransfer.get_instance().send_command(
+                server = json.loads(DbTransfer.send_command(
                     'stat: {"server_port":%s}' % port))
                 if server['stat'] != 'ko':
                     logging.info(
@@ -261,7 +261,7 @@ class DbTransfer(object):
             DbTransfer.verbose_print('U[%s] User ID Obtained:%s' % (port, user))
             tran = str(dt_transfer[port])
             data = {'d': tran, 'node_id': config.API_NODE_ID, 'u': '0'}
-            url = config.API_URL + '/users/' + str(user) + '/traffic?key=' + config.API_PASS
+            url = config.API_URL + '/users?a=traffic&key=' + config.API_PASS + '&uid=' + str(user)
             DbTransfer.http_post(url, data)
             DbTransfer.verbose_print('api upload: pushing transfer statistics - done')
             i += 1
@@ -269,13 +269,13 @@ class DbTransfer(object):
         # online user count
         DbTransfer.verbose_print('api upload: pushing online user count - start')
         data = {'count': i}
-        url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/online_count?key=' + config.API_PASS
+        url = config.API_URL + '/nodes?a=online_count&key=' + config.API_PASS + '&nid=' + config.API_NODE_ID
         DbTransfer.http_post(url, data)
         DbTransfer.verbose_print('api upload: pushing online user count - done')
 
         # load info
         DbTransfer.verbose_print('api upload: node status - start')
-        url = config.API_URL + '/nodes/' + config.API_NODE_ID + '/info?key=' + config.API_PASS
+        url = config.API_URL + '/nodes?a=info&key=' + config.API_PASS + '&nid=' + config.API_NODE_ID
         f = open("/proc/loadavg")
         load = f.read().split()
         f.close()
