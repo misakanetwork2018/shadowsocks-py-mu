@@ -261,7 +261,7 @@ class DbTransfer(object):
             DbTransfer.verbose_print('U[%s] User ID Obtained:%s' % (port, user))
             tran = str(dt_transfer[port])
             data = {'d': tran, 'node_id': config.API_NODE_ID, 'u': '0'}
-            url = config.API_URL + '/users?a=traffic&key=' + config.API_PASS + '&uid=' + str(user)
+            url = config.API_URL + '/users?key=' + config.API_PASS + '&uid=' + str(user)
             DbTransfer.http_post(url, data)
             DbTransfer.verbose_print('api upload: pushing transfer statistics - done')
             i += 1
